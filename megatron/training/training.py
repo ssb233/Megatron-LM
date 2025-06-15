@@ -9,6 +9,7 @@ import gc
 import logging
 import math
 import os
+import platform
 import sys
 from .log_handler import CustomHandler
 # Make default logging level INFO, but filter out all log messages not from MCore.
@@ -718,7 +719,7 @@ def train_step(forward_step_func, data_iterator,
 
     # Set grad to zero.
     for model_chunk in model:
-        model_chunk.zero_grad_buffer()
+        model_chunk.zero_grad_buffer() # set is_last_microbatch to True
     optimizer.zero_grad()
 
     # Forward pass.
@@ -798,6 +799,8 @@ def training_log(loss_dict, total_loss_dict, learning_rate, decoupled_learning_r
     writer = get_tensorboard_writer()
     wandb_writer = get_wandb_writer()
     one_logger = get_one_logger()
+    
+    # crossdc: TODO: only last PP rank has writer, so data is not correctly logged for schedules like zbv
 
     # Advanced, skipped, and Nan iterations.
     advanced_iters_key = 'advanced iterations'
@@ -1150,6 +1153,10 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
         if len(model) == 1:
             config.param_sync_func = config.param_sync_func[0]
     config.finalize_model_grads_func = finalize_model_grads
+    
+    if args.enable_cdcpp_scheduler:
+        from megatron.core.pipeline_parallel.cdc_scheduler.pp_scheduler import get_cdc_pp_scheduler
+        get_cdc_pp_scheduler().update_args_and_config(args, config)
 
     timers('interval-time', log_level=0).start(barrier=True)
     print_datetime('before the start of training step')
@@ -1200,19 +1207,25 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
             one_logger.store_set('get_e2e_base_metrics', get_e2e_base_metrics)
 
     if args.profile and torch.distributed.get_rank() in args.profile_ranks and args.use_pytorch_profiler:
+        world_rank = torch.distributed.get_rank()
         prof = torch.profiler.profile(
-        schedule=torch.profiler.schedule(
-            wait=max(args.profile_step_start-1, 0),
-            warmup=1 if args.profile_step_start > 0 else 0,
-            active=args.profile_step_end-args.profile_step_start,
-            repeat=1),
-        on_trace_ready=torch.profiler.tensorboard_trace_handler(args.tensorboard_dir),
-        record_shapes=True,
-        with_stack=True)
+            activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
+            schedule=torch.profiler.schedule(
+                wait=max(args.profile_step_start-1, 0),
+                warmup=1 if args.profile_step_start > 0 else 0,
+                active=args.profile_step_end-args.profile_step_start,
+                repeat=1),
+            on_trace_ready=torch.profiler.tensorboard_trace_handler(args.tensorboard_dir, worker_name=f'torchprof_{world_rank}'),
+            record_shapes=True,
+            with_stack=True
+        )
         prof.start()
 
     while iteration < args.train_iters:
         if args.profile and torch.distributed.get_rank() in args.profile_ranks:
+            # # check if x86 platform
+            # if 'x86' in platform.machine():
+            #     torch.cuda.memory._record_memory_history()
             if args.use_pytorch_profiler:
                 prof.step()
             elif iteration == args.profile_step_start:
@@ -1237,6 +1250,7 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
         num_microbatches = get_num_microbatches()
         update_num_microbatches(args.consumed_train_samples, consistency_check=True, verbose=True)
 
+        torch.cuda.nvtx.range_push(f'Iteration {iteration}')
         args.curr_iteration = iteration
         loss_dict, skipped_iter, grad_norm, num_zeros_in_grad = \
             train_step(forward_step_func,
@@ -1245,6 +1259,7 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
                        optimizer,
                        opt_param_scheduler,
                        config)
+        torch.cuda.nvtx.range_pop()
         iteration += 1
         batch_size = mpu.get_data_parallel_world_size() * \
                      args.micro_batch_size * \
@@ -1429,6 +1444,8 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
                 prof.stop()
             else:
                 torch.cuda.cudart().cudaProfilerStop()
+            # if 'x86' in platform.machine():
+            #     torch.cuda.memory._dump_snapshot(f'{args.tensorboard_dir}/rank{torch.distributed.get_rank()}.json')
 
         if args.manual_gc:
             if args.manual_gc_interval != 0 and iteration % args.manual_gc_interval == 0:

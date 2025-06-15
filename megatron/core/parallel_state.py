@@ -10,6 +10,7 @@ from itertools import cycle
 from typing import Callable, List, Optional
 
 import torch
+import torch.distributed as dist
 
 from .utils import GlobalMemoryBuffer
 
@@ -17,6 +18,8 @@ from .utils import GlobalMemoryBuffer
 _TENSOR_MODEL_PARALLEL_GROUP = None
 # Inter-layer model parallel group that the current rank belongs to.
 _PIPELINE_MODEL_PARALLEL_GROUP = None
+# cdcpp scheduler need 4 extra pp groups
+_PIPELINE_EXTRA_GROUP = None
 # Model parallel group (both intra- and pipeline) that the current rank belongs to.
 _MODEL_PARALLEL_GROUP = None
 # Model parallel group (both intra-, pipeline, and expert) that the current rank belongs to.
@@ -65,6 +68,7 @@ _POSITION_EMBEDDING_GLOBAL_RANKS = None
 # A list of global ranks for each pipeline group to ease calculation of the source
 # rank when broadcasting from the first or last pipeline stage.
 _PIPELINE_GLOBAL_RANKS = None
+_PIPELINE_EXTRA_GLOBAL_RANKS = None
 
 # A list of global ranks for each data parallel group to ease calculation of the source
 # rank when broadcasting weights from src to all other data parallel ranks
@@ -335,6 +339,15 @@ def default_embedding_ranks(pp_ranks, split_rank=None):
     elif split_rank is not None and pp_ranks[split_rank] not in (pp_ranks[0], pp_ranks[-1]):
         return [pp_ranks[0], pp_ranks[split_rank], pp_ranks[-1]]
     else:
+        from megatron.training.global_vars import get_args
+        args = get_args()
+        if args.enable_cdcpp_scheduler:
+            from megatron.core.pipeline_parallel.cdc_scheduler.pp_scheduler import get_cdc_pp_scheduler
+            pipeline = get_cdc_pp_scheduler().pp_schedule
+            first_stage_rank = pipeline.get_pipeline_first_stage_rank()
+            last_stage_rank = pipeline.get_pipeline_last_stage_rank()
+            return [first_stage_rank, last_stage_rank]
+            
         return [pp_ranks[0], pp_ranks[-1]]
 
 
@@ -741,6 +754,9 @@ def initialize_model_parallel(
     global _POSITION_EMBEDDING_GROUP
     global _POSITION_EMBEDDING_GLOBAL_RANKS
     assert _POSITION_EMBEDDING_GROUP is None, 'position embedding group is already initialized'
+    global _PIPELINE_EXTRA_GROUP
+    global _PIPELINE_EXTRA_GLOBAL_RANKS
+    assert _PIPELINE_EXTRA_GROUP is None, 'extra pipeline group is already initialized'
     for ranks in generator_wrapper('pp'):
         group = torch.distributed.new_group(
             ranks, timeout=timeout, pg_options=get_nccl_options('pp', nccl_comm_cfgs)
@@ -755,7 +771,23 @@ def initialize_model_parallel(
             else:
                 _PIPELINE_MODEL_PARALLEL_GROUP = [_PIPELINE_MODEL_PARALLEL_GROUP, group]
                 _PIPELINE_GLOBAL_RANKS = [_PIPELINE_GLOBAL_RANKS, ranks]
+        
+        from megatron.training.global_vars import get_args
+        args = get_args()
+        if args.enable_cdcpp_scheduler:
+            for _ in range(4):
+                extra_group = torch.distributed.new_group(
+                    ranks, timeout=timeout, pg_options=get_nccl_options('pp', nccl_comm_cfgs)
+                )
+                if rank in ranks:
+                    if _PIPELINE_EXTRA_GROUP is None:
+                        _PIPELINE_EXTRA_GROUP = [extra_group,]
+                        _PIPELINE_EXTRA_GLOBAL_RANKS = [ranks,]
+                    else:
+                        _PIPELINE_EXTRA_GROUP.append(extra_group)
+                        _PIPELINE_EXTRA_GLOBAL_RANKS.append(ranks)                   
 
+    for ranks in generator_wrapper('pp'):
         embedding_ranks = get_embedding_ranks(ranks)
         group = torch.distributed.new_group(
             embedding_ranks, timeout=timeout, pg_options=get_nccl_options('embd', nccl_comm_cfgs)
@@ -866,6 +898,7 @@ def initialize_model_parallel(
     # put this. If we end up with a more generic initialization of megatron-core
     # we could stick it there
     _set_global_memory_buffer()
+    _initialize_pp_extra_groups_communicators()
 
 
 def is_initialized():
@@ -921,6 +954,54 @@ def get_pipeline_model_parallel_group():
     ), 'pipeline_model parallel group is not initialized'
     return _PIPELINE_MODEL_PARALLEL_GROUP
 
+
+def get_pipeline_extra_groups():
+    """Get the pipeline extra groups the caller rank belongs to."""
+    assert (
+        _PIPELINE_EXTRA_GROUP is not None
+    ), 'pipeline extra groups are not initialized'
+    return _PIPELINE_EXTRA_GROUP
+
+def get_pipeline_extra_send_next_group():
+    extra_groups = get_pipeline_extra_groups()
+    pp_size = get_pipeline_model_parallel_world_size()
+    assert pp_size % 2 == 0, 'pipeline parallel size should be even'
+    pp_rank = get_pipeline_model_parallel_rank()
+    if pp_rank % 2 == 0:
+        return extra_groups[0]
+    else:
+        return extra_groups[2]
+
+def get_pipeline_extra_send_prev_group():
+    extra_groups = get_pipeline_extra_groups()
+    pp_size = get_pipeline_model_parallel_world_size()
+    assert pp_size % 2 == 0, 'pipeline parallel size should be even'
+    pp_rank = get_pipeline_model_parallel_rank()
+    if pp_rank % 2 == 0:
+        return extra_groups[3]
+    else:
+        return extra_groups[1]
+
+def get_pipeline_extra_recv_next_group():
+    extra_groups = get_pipeline_extra_groups()
+    pp_size = get_pipeline_model_parallel_world_size()
+    assert pp_size % 2 == 0, 'pipeline parallel size should be even'
+    pp_rank = get_pipeline_model_parallel_rank()
+    if pp_rank % 2 == 0:
+        return extra_groups[1]
+    else:
+        return extra_groups[3]
+
+def get_pipeline_extra_recv_prev_group():
+    extra_groups = get_pipeline_extra_groups()
+    pp_size = get_pipeline_model_parallel_world_size()
+    assert pp_size % 2 == 0, 'pipeline parallel size should be even'
+    pp_rank = get_pipeline_model_parallel_rank()
+    if pp_rank % 2 == 0:
+        return extra_groups[2]
+    else:
+        return extra_groups[0]
+    
 
 def get_data_parallel_group(with_context_parallel=False):
     """Get the data-parallel group the caller rank belongs to."""
@@ -1167,6 +1248,7 @@ def get_pipeline_model_parallel_rank():
     else:
         return torch.distributed.get_rank(group=pp_group)
 
+get_pipeline_extra_rank = get_pipeline_model_parallel_rank
 
 def get_pipeline_model_parallel_split_rank():
     """Return pipeline-model-parallel split rank."""
@@ -1176,6 +1258,18 @@ def get_pipeline_model_parallel_split_rank():
 
 def is_pipeline_first_stage(ignore_virtual=False):
     """Return True if in the first pipeline model-parallel stage, False otherwise."""
+    
+    from megatron.training.global_vars import get_args
+    args = get_args()
+    if args.enable_cdcpp_scheduler:
+        from megatron.core.pipeline_parallel.cdc_scheduler.pp_scheduler import get_cdc_pp_scheduler
+        first_stage_rank = get_cdc_pp_scheduler().pp_schedule.get_pipeline_first_stage_rank()
+        if ignore_virtual:
+            return get_pipeline_model_parallel_rank() == first_stage_rank
+        else:
+            return get_pipeline_model_parallel_rank() == first_stage_rank \
+                and get_virtual_pipeline_model_parallel_rank() == 0
+    
     if not ignore_virtual:
         if (
             get_virtual_pipeline_model_parallel_world_size() is not None
@@ -1186,7 +1280,24 @@ def is_pipeline_first_stage(ignore_virtual=False):
 
 
 def is_pipeline_last_stage(ignore_virtual=False):
-    """Return True if in the last pipeline-model-parallel stage, False otherwise."""
+    """Return True if in the last pipeline-model-parallel stage, False otherwise.
+    crossdc: Warining! When ignore_virtual is True, it will return True if current device contains loss!"""
+    from megatron.training.global_vars import get_args
+    args = get_args()
+    
+    if args.enable_cdcpp_scheduler:
+        from megatron.core.pipeline_parallel.cdc_scheduler.pp_scheduler import get_cdc_pp_scheduler
+        last_stage_rank = get_cdc_pp_scheduler().pp_schedule.get_pipeline_last_stage_rank()
+       
+        virtual_pipeline_model_parallel_world_size = (
+            get_virtual_pipeline_model_parallel_world_size()
+        )
+        if ignore_virtual:
+            return get_pipeline_model_parallel_rank() == last_stage_rank
+        else:
+            return get_pipeline_model_parallel_rank() == last_stage_rank \
+            and get_virtual_pipeline_model_parallel_rank() == (virtual_pipeline_model_parallel_world_size - 1)
+
     if not ignore_virtual:
         virtual_pipeline_model_parallel_world_size = (
             get_virtual_pipeline_model_parallel_world_size()
@@ -1344,6 +1455,13 @@ def get_pipeline_model_parallel_first_rank():
     else:
         return _PIPELINE_GLOBAL_RANKS[0]
 
+def get_pipeline_extra_groups_first_rank():
+    """Return the global rank of the first stage in the current rank's pipeline."""
+    assert _PIPELINE_EXTRA_GLOBAL_RANKS is not None, "Pipeline parallel group is not initialized"
+    # I assume the first rank is the same for all pp groups right now.
+    for rank_group in _PIPELINE_EXTRA_GLOBAL_RANKS:
+        assert rank_group[0] == _PIPELINE_EXTRA_GLOBAL_RANKS[0][0]
+    return _PIPELINE_EXTRA_GLOBAL_RANKS[0][0]
 
 def get_pipeline_model_parallel_last_rank():
     """Return the global rank of the last stage in the current rank's pipeline."""
@@ -1351,6 +1469,13 @@ def get_pipeline_model_parallel_last_rank():
     last_rank_local = get_pipeline_model_parallel_world_size() - 1
     return _PIPELINE_GLOBAL_RANKS[last_rank_local]
 
+def get_pipeline_extra_groups_last_rank():
+    """Return the global rank of the last stage in the current rank's pipeline."""
+    assert _PIPELINE_EXTRA_GLOBAL_RANKS is not None, "Pipeline parallel group is not initialized"
+    last_rank_local = get_pipeline_model_parallel_world_size() - 1
+    for rank_group in _PIPELINE_EXTRA_GLOBAL_RANKS:
+        assert rank_group[last_rank_local] == _PIPELINE_EXTRA_GLOBAL_RANKS[0][last_rank_local]
+    return _PIPELINE_EXTRA_GLOBAL_RANKS[0][last_rank_local]
 
 def get_pipeline_model_parallel_next_rank():
     """Return the global rank that follows the caller in the pipeline, for each
@@ -1369,6 +1494,14 @@ def get_pipeline_model_parallel_next_rank():
     else:
         return _PIPELINE_GLOBAL_RANKS[(rank_in_pipeline + 1) % world_size]
 
+def get_pipeline_extra_groups_next_rank():
+    assert _PIPELINE_EXTRA_GLOBAL_RANKS is not None
+    rank_in_pipeline = get_pipeline_extra_rank()
+    world_size = get_pipeline_model_parallel_world_size()
+    to_return = []
+    for group in _PIPELINE_EXTRA_GLOBAL_RANKS:
+        to_return.append(group[(rank_in_pipeline + 1) % world_size])
+    return to_return
 
 def get_pipeline_model_parallel_prev_rank():
     """Return the global rank that precedes the caller in the pipeline, for each
@@ -1387,6 +1520,14 @@ def get_pipeline_model_parallel_prev_rank():
     else:
         return _PIPELINE_GLOBAL_RANKS[(rank_in_pipeline - 1) % world_size]
 
+def get_pipeline_extra_groups_prev_rank():
+    assert _PIPELINE_EXTRA_GLOBAL_RANKS is not None
+    rank_in_pipeline = get_pipeline_extra_rank()
+    world_size = get_pipeline_model_parallel_world_size()
+    to_return = []
+    for group in _PIPELINE_EXTRA_GLOBAL_RANKS:
+        to_return.append(group[(rank_in_pipeline + world_size - 1) % world_size])
+    return to_return
 
 def get_data_parallel_world_size(with_context_parallel=False):
     """Return world size for the data parallel group."""
@@ -1560,6 +1701,9 @@ def destroy_model_parallel():
 
     global _PIPELINE_MODEL_PARALLEL_GROUP
     _PIPELINE_MODEL_PARALLEL_GROUP = None
+    
+    global _PIPELINE_EXTRA_GROUP
+    _PIPELINE_EXTRA_GROUP = None
 
     global _DATA_PARALLEL_GROUP
     _DATA_PARALLEL_GROUP = None
@@ -1645,3 +1789,51 @@ def destroy_model_parallel():
 
     global _MOE_LAYER_WISE_LOGGING_TRACKER
     _MOE_LAYER_WISE_LOGGING_TRACKER = {}
+
+def _initialize_pp_extra_groups_communicators():
+    """Initialize communicators for extra pipeline groups.
+    
+    P2P communicator initialzation is lazy and somehow, blocking.
+    We initialize eagerly here to avoid deadlocks.   
+    """
+    
+    from megatron.training.global_vars import get_args
+    args = get_args()
+    if not args.enable_cdcpp_scheduler:
+        return
+    
+    from megatron.core.pipeline_parallel.cdc_scheduler.pp_scheduler import get_cdc_pp_scheduler
+    pgs = get_pipeline_extra_groups()
+    prev_ranks = get_pipeline_extra_groups_prev_rank()
+    next_ranks = get_pipeline_extra_groups_next_rank()
+    cur_rank = get_pipeline_extra_rank()
+    
+    assert len(pgs) == len(prev_ranks) == len(next_ranks) == 4
+    assert get_pipeline_model_parallel_world_size() % 2 == 0
+    cdc_scheduler = get_cdc_pp_scheduler()
+    send_impl = cdc_scheduler.send
+    recv_impl = cdc_scheduler.recv
+
+    # Initialize the communicators (blocking).
+    send_dummy_tensor = torch.tensor([1], device=torch.cuda.current_device())
+    recv_dummy_tensor = torch.tensor([1], device=torch.cuda.current_device())
+    prev_rank = prev_ranks[0]
+    next_rank = next_ranks[0]
+    '''
+                 pg0 pg2 pg0 pg2
+                 --> --> --> -->
+    pp stage:   0   1   2   3   0
+                 <-- <-- <-- <--
+                 pg1 pg3 pg1 pg3
+    '''
+    if cur_rank % 2 == 0:
+        send_impl(send_dummy_tensor, next_rank, get_pipeline_extra_send_next_group())
+        recv_impl(recv_dummy_tensor, next_rank, get_pipeline_extra_recv_next_group())
+        recv_impl(recv_dummy_tensor, prev_rank, get_pipeline_extra_recv_prev_group())
+        send_impl(send_dummy_tensor, prev_rank, get_pipeline_extra_send_prev_group())
+    else:
+        recv_impl(recv_dummy_tensor, prev_rank, get_pipeline_extra_recv_prev_group())
+        send_impl(send_dummy_tensor, prev_rank, get_pipeline_extra_send_prev_group())
+        send_impl(send_dummy_tensor, next_rank, get_pipeline_extra_send_next_group())
+        recv_impl(recv_dummy_tensor, next_rank, get_pipeline_extra_recv_next_group())
+    
