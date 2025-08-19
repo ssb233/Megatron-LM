@@ -15,3 +15,4 @@ onelogger.err
 .venv
 test_cases/
 runs/
+/myData/openwebtext_100k.jsonl

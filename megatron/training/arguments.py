@@ -78,6 +78,9 @@ def add_megatron_arguments(parser: argparse.ArgumentParser):
     parser = _add_msc_args(parser)
     parser = _add_kitchen_quantization_arguments(parser)
     parser = _add_sft_args(parser)
+    
+    # parse profiler args : by soybean
+    parser = _add_profiler_args(parser)
 
     return parser
 
@@ -3017,4 +3020,12 @@ def _add_sft_args(parser):
     group.add_argument('--sft', action="store_true", help='Megatron SFT training')
     group.add_argument('--sft-tokenizer-prompt-format', type=str, default="nemotron-h-aligned", 
                        help='SFT prompt format.')
+    return parser
+
+# Add profiler arguments : by soybean
+def _add_profiler_args(parser):
+    group = parser.add_argument_group(title='profiler')
+    group.add_argument('--profile_ranks', nargs='+', type=int, default=[0],
+                       help='Global ranks to profile')
+    
     return parser

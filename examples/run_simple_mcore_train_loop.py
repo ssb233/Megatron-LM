@@ -21,7 +21,7 @@ from megatron.training.tokenizer.tokenizer import _NullTokenizer
 _SEQUENCE_LENGTH = 64
 
 
-def initialize_distributed(tensor_model_parallel_size=1, pipeline_model_parallel_size=1):
+def initialize_distributed(tensor_model_parallel_size=1, pipeline_model_parallel_size=2):
     parallel_state.destroy_model_parallel()
 
     # Torch setup for distributed training
@@ -156,4 +156,3 @@ if __name__ == "__main__":
     gpt_model = load_distributed_checkpoint(gpt_model=gpt_model, checkpoint_path=ckpt_path)
     gpt_model.to(device)
     print('Successfully loaded the model')
-

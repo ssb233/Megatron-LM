@@ -2234,6 +2234,7 @@ def train(
             with_stack=True,
         )
         prof.start()
+    
 
     start_iteration = iteration
     # Disable forward pre-hook to start training to ensure that errors in checkpoint loading
@@ -2253,12 +2254,48 @@ def train(
         ), "Parameter hashes not matching across DP replicas"
         torch.distributed.barrier()
         print_rank_0(f">>> Weight hashes match after {iteration} iterations...")
+    
+    # my_profiler design : by soybean
+    def my_trace_handler(prof):
+        #print(prof.key_averages().table(
+        #sort_by="self_cuda_time_total", row_limit=-1))
+        #if torch.distributed.get_rank() == 0:
+        # print(f"print profiling data of rank {torch.distributed.get_rank()} as following:\n" + prof.key_averages().table(
+        #         sort_by="self_cuda_time_total", row_limit=20))
+            #print("running into trace_handler............................................................")
+            #with open(f"/workspace/infrawaves/tmp/profiling_rank0_{iteration}", 'w') as file:
+                #   file.write(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=-1))
+        prof.export_chrome_trace("tmp/test_trace_" + str(torch.distributed.get_rank()) + "_" + str(iteration) + ".json")
 
     # Run training iterations till done.
     while iteration < args.train_iters:
+        
+        # use my_trace_handler to handle profiling : by soybean
+        if iteration == 2 and torch.distributed.get_rank() in args.profile_ranks:
+            with torch.profiler.profile(
+                        activities=[
+                            torch.profiler.ProfilerActivity.CPU,
+                            torch.profiler.ProfilerActivity.CUDA,
+                        ],
+                        schedule=torch.profiler.schedule(
+                            wait=0,
+                            warmup=0,
+                            active=1,
+                            repeat=1),
+                        on_trace_ready=my_trace_handler
+            ) as p:
+                loss_dict, skipped_iter, grad_norm, num_zeros_in_grad = \
+                    train_step(forward_step_func,
+                                train_data_iterator,
+                                model,
+                                optimizer,
+                                opt_param_scheduler,
+                                config)
+                p.step()
+        
         if args.profile and torch.distributed.get_rank() in args.profile_ranks:
             if args.use_pytorch_profiler:
-                prof.step()
+                prof.step()    
             elif iteration == args.profile_step_start:
                 torch.cuda.cudart().cudaProfilerStart()
                 torch.autograd.profiler.emit_nvtx(record_shapes=True).__enter__()
