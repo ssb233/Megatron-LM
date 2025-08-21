@@ -79,8 +79,9 @@ def add_megatron_arguments(parser: argparse.ArgumentParser):
     parser = _add_kitchen_quantization_arguments(parser)
     parser = _add_sft_args(parser)
     
-    # parse profiler args : by soybean
+    # new parsers : by soybean
     parser = _add_profiler_args(parser)
+    parser = _add_cross_dc_args(parser)
 
     return parser
 
@@ -3025,7 +3026,18 @@ def _add_sft_args(parser):
 # Add profiler arguments : by soybean
 def _add_profiler_args(parser):
     group = parser.add_argument_group(title='profiler')
-    group.add_argument('--profile_ranks', nargs='+', type=int, default=[0],
+    group.add_argument('--profile-log-ranks', nargs='+', type=int, default=[0],
                        help='Global ranks to profile')
     
+    return parser
+
+# Add cross dc arguments : by soybean
+def _add_cross_dc_args(parser):
+    group = parser.add_argument_group(title='cross dc')
+    group.add_argument('--use-cross-dc', type=bool, default=False,
+                       help='cross dc switch')
+    group.add_argument('--cross-dc-delay', type=float, default=10.0,
+                       help='cross dc delay')
+    group.add_argument('--dc-size', type=int, default=1000,
+                       help='single dc rank num')
     return parser

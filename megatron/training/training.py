@@ -2265,13 +2265,16 @@ def train(
             #print("running into trace_handler............................................................")
             #with open(f"/workspace/infrawaves/tmp/profiling_rank0_{iteration}", 'w') as file:
                 #   file.write(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=-1))
-        prof.export_chrome_trace("tmp/test_trace_" + str(torch.distributed.get_rank()) + "_" + str(iteration) + ".json")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        trace_path = f"./example/profiler_log/{timestamp}"
+        os.makedirs(trace_path, exist_ok=True)
+        prof.export_chrome_trace(f"{trace_path}/trace_rank_" + str(torch.distributed.get_rank()) + "_iter_" + str(iteration) + ".json")
 
     # Run training iterations till done.
     while iteration < args.train_iters:
         
         # use my_trace_handler to handle profiling : by soybean
-        if iteration == 2 and torch.distributed.get_rank() in args.profile_ranks:
+        if iteration == 2 and torch.distributed.get_rank() in args.profile_log_ranks:
             with torch.profiler.profile(
                         activities=[
                             torch.profiler.ProfilerActivity.CPU,
@@ -2283,14 +2286,18 @@ def train(
                             active=1,
                             repeat=1),
                         on_trace_ready=my_trace_handler
+                        # record_shapes=True,
+                        # profile_memory=True,
+                        # with_stack=True
             ) as p:
-                loss_dict, skipped_iter, grad_norm, num_zeros_in_grad = \
-                    train_step(forward_step_func,
-                                train_data_iterator,
-                                model,
-                                optimizer,
-                                opt_param_scheduler,
-                                config)
+                
+                train_step(forward_step_func,
+                            train_data_iterator,
+                            model,
+                            optimizer,
+                            opt_param_scheduler,
+                            config,
+                            forward_backward_func)
                 p.step()
         
         if args.profile and torch.distributed.get_rank() in args.profile_ranks:

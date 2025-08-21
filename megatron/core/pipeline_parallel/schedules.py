@@ -1681,81 +1681,87 @@ def get_tensor_shapes(
 
 def recv_forward(tensor_shapes, config, is_first_stage):
     """Wrapper for p2p_communication.recv_forward used with non-interleaving schedule."""
-    input_tensors = []
-    for tensor_shape in tensor_shapes:
-        if tensor_shape is None:
-            input_tensors.append(None)
-        else:
-            input_tensors.append(
-                p2p_communication.recv_forward(tensor_shape, config, is_first_stage)
-            )
+    with torch.profiler.record_function("recv_forward"):
+        input_tensors = []
+        for tensor_shape in tensor_shapes:
+            if tensor_shape is None:
+                input_tensors.append(None)
+            else:
+                input_tensors.append(
+                    p2p_communication.recv_forward(tensor_shape, config, is_first_stage)
+                )
     return input_tensors
 
 
 def recv_backward(tensor_shapes, config, is_last_stage):
     """Wrapper for p2p_communication.recv_backward used with non-interleaving schedule."""
-    output_tensor_grads = []
-    for tensor_shape in tensor_shapes:
-        if tensor_shape is None:
-            output_tensor_grads.append(None)
-        else:
-            output_tensor_grads.append(
-                p2p_communication.recv_backward(tensor_shape, config, is_last_stage)
-            )
+    with torch.profiler.record_function("recv_backward"):
+        output_tensor_grads = []
+        for tensor_shape in tensor_shapes:
+            if tensor_shape is None:
+                output_tensor_grads.append(None)
+            else:
+                output_tensor_grads.append(
+                    p2p_communication.recv_backward(tensor_shape, config, is_last_stage)
+                )
     return output_tensor_grads
 
 
 def send_forward(output_tensors, tensor_shapes, config, is_last_stage):
     """Wrapper for p2p_communication.send_forward used with non-interleaving schedule."""
-    if not isinstance(output_tensors, list):
-        output_tensors = [output_tensors]
-    for output_tensor, tensor_shape in zip(output_tensors, tensor_shapes):
-        if tensor_shape is None:
-            continue
-        p2p_communication.send_forward(output_tensor, config, is_last_stage)
+    with torch.profiler.record_function("send_forward"):
+        if not isinstance(output_tensors, list):
+            output_tensors = [output_tensors]
+        for output_tensor, tensor_shape in zip(output_tensors, tensor_shapes):
+            if tensor_shape is None:
+                continue
+            p2p_communication.send_forward(output_tensor, config, is_last_stage)
 
 
 def send_backward(input_tensor_grads, tensor_shapes, config, is_first_stage):
     """Wrapper for p2p_communication.send_backward used with non-interleaving schedule."""
-    if not isinstance(input_tensor_grads, list):
-        input_tensor_grads = [input_tensor_grads]
-    for input_tensor_grad, tensor_shape in zip(input_tensor_grads, tensor_shapes):
-        if tensor_shape is None:
-            continue
-        p2p_communication.send_backward(input_tensor_grad, config, is_first_stage)
+    with torch.profiler.record_function("send_backward"):
+        if not isinstance(input_tensor_grads, list):
+            input_tensor_grads = [input_tensor_grads]
+        for input_tensor_grad, tensor_shape in zip(input_tensor_grads, tensor_shapes):
+            if tensor_shape is None:
+                continue
+            p2p_communication.send_backward(input_tensor_grad, config, is_first_stage)
 
 
 def send_forward_recv_backward(output_tensors, tensor_shapes, config, is_last_stage):
     """Wrapper for p2p_communication.send_forward_recv_backward used
     with non-interleaving schedule."""
-    if not isinstance(output_tensors, list):
-        output_tensors = [output_tensors]
-    output_tensor_grads = []
-    for output_tensor, tensor_shape in zip(output_tensors, tensor_shapes):
-        if tensor_shape is None:
-            output_tensor_grads.append(None)
-            continue
-        output_tensor_grad = p2p_communication.send_forward_recv_backward(
-            output_tensor, tensor_shape, config, is_last_stage
-        )
-        output_tensor_grads.append(output_tensor_grad)
+    with torch.profiler.record_function("send_forward_recv_backward"):
+        if not isinstance(output_tensors, list):
+            output_tensors = [output_tensors]
+        output_tensor_grads = []
+        for output_tensor, tensor_shape in zip(output_tensors, tensor_shapes):
+            if tensor_shape is None:
+                output_tensor_grads.append(None)
+                continue
+            output_tensor_grad = p2p_communication.send_forward_recv_backward(
+                output_tensor, tensor_shape, config, is_last_stage
+            )
+            output_tensor_grads.append(output_tensor_grad)
     return output_tensor_grads
 
 
 def send_backward_recv_forward(input_tensor_grads, tensor_shapes, config, is_first_stage):
     """Wrapper for p2p_communication.send_backward_recv_forward used
     with non-interleaving schedule."""
-    if not isinstance(input_tensor_grads, list):
-        input_tensor_grads = [input_tensor_grads]
-    input_tensors = []
-    for input_tensor_grad, tensor_shape in zip(input_tensor_grads, tensor_shapes):
-        if tensor_shape is None:
-            input_tensors.append(None)
-            continue
-        input_tensor = p2p_communication.send_backward_recv_forward(
-            input_tensor_grad, tensor_shape, config, is_first_stage
-        )
-        input_tensors.append(input_tensor)
+    with torch.profiler.record_function("send_backward_recv_forward"):
+        if not isinstance(input_tensor_grads, list):
+            input_tensor_grads = [input_tensor_grads]
+        input_tensors = []
+        for input_tensor_grad, tensor_shape in zip(input_tensor_grads, tensor_shapes):
+            if tensor_shape is None:
+                input_tensors.append(None)
+                continue
+            input_tensor = p2p_communication.send_backward_recv_forward(
+                input_tensor_grad, tensor_shape, config, is_first_stage
+            )
+            input_tensors.append(input_tensor)
     return input_tensors
 
 
@@ -1887,23 +1893,27 @@ def forward_backward_pipelining_without_interleaving(
             )
         else:
             checkpoint_activations_microbatch = None
-
+        
         input_tensor = recv_forward(
             recv_tensor_shapes, config, parallel_state.is_pipeline_first_stage()
         )
-        output_tensor, num_tokens = forward_step(
-            forward_step_func,
-            data_iterator,
-            model,
-            num_microbatches,
-            input_tensor,
-            forward_data_store,
-            config,
-            collect_non_loss_data,
-            checkpoint_activations_microbatch,
-            check_first_val_step(first_val_step, forward_only, i == 0),
-            current_microbatch=i,
-        )
+        
+        # 添加profiler标记
+        with torch.profiler.record_function(f"warm_up_forward_pp{parallel_state.get_pipeline_model_parallel_rank()}"):
+            output_tensor, num_tokens = forward_step(
+                forward_step_func,
+                data_iterator,
+                model,
+                num_microbatches,
+                input_tensor,
+                forward_data_store,
+                config,
+                collect_non_loss_data,
+                checkpoint_activations_microbatch,
+                check_first_val_step(first_val_step, forward_only, i == 0),
+                current_microbatch=i,
+            )
+        
         send_forward(
             output_tensor, send_tensor_shapes, config, parallel_state.is_pipeline_last_stage()
         )
@@ -1934,21 +1944,23 @@ def forward_backward_pipelining_without_interleaving(
         else:
             checkpoint_activations_microbatch = None
 
-        output_tensor, num_tokens = forward_step(
-            forward_step_func,
-            data_iterator,
-            model,
-            num_microbatches,
-            input_tensor,
-            forward_data_store,
-            config,
-            collect_non_loss_data,
-            checkpoint_activations_microbatch,
-            check_first_val_step(
-                first_val_step, forward_only, (i == 0) and (num_warmup_microbatches == 0)
-            ),
-            current_microbatch=i + num_warmup_microbatches,
-        )
+        # 添加profiler标记
+        with torch.profiler.record_function(f"steady_forward_pp{parallel_state.get_pipeline_model_parallel_rank()}"):
+            output_tensor, num_tokens = forward_step(
+                forward_step_func,
+                data_iterator,
+                model,
+                num_microbatches,
+                input_tensor,
+                forward_data_store,
+                config,
+                collect_non_loss_data,
+                checkpoint_activations_microbatch,
+                check_first_val_step(
+                    first_val_step, forward_only, (i == 0) and (num_warmup_microbatches == 0)
+                ),
+                current_microbatch=i + num_warmup_microbatches,
+            )
         total_num_tokens += num_tokens
 
         if forward_only:
@@ -1981,10 +1993,11 @@ def forward_backward_pipelining_without_interleaving(
             if num_warmup_microbatches == 0 and last_iteration:
                 if config.grad_sync_func is None or rank == 0:
                     enable_grad_sync()
-
-            input_tensor_grad = backward_step(
-                input_tensor, output_tensor, output_tensor_grad, model_type, config
-            )
+            
+            with torch.profiler.record_function(f"steady_backward_pp{parallel_state.get_pipeline_model_parallel_rank()}"):
+                input_tensor_grad = backward_step(
+                    input_tensor, output_tensor, output_tensor_grad, model_type, config
+                )
 
             if last_iteration:
                 input_tensor = None
@@ -2022,9 +2035,10 @@ def forward_backward_pipelining_without_interleaving(
                 send_tensor_shapes, config, parallel_state.is_pipeline_last_stage()
             )
 
-            input_tensor_grad = backward_step(
-                input_tensor, output_tensor, output_tensor_grad, model_type, config
-            )
+            with torch.profiler.record_function(f"cool_down_backward_pp{parallel_state.get_pipeline_model_parallel_rank()}"):
+                input_tensor_grad = backward_step(
+                    input_tensor, output_tensor, output_tensor_grad, model_type, config
+                )
 
             send_backward(
                 input_tensor_grad,

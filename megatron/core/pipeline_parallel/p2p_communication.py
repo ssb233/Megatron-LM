@@ -275,7 +275,48 @@ def _communicate(
         - tensor_recv_next: torch.Tensor if recv_next is True, None otherwise.
 
     """
-
+    # add cross dc delay
+    def get_is_cross_rank(src_rank=None, dst_rank=None, dc_size=1000):
+        """
+        Args:
+            src_rank (int, optional): src rank 
+            dst_rank (int, optional): dst rank
+            dc_size (int, optional): rank num of single DC
+        """
+        if src_rank is None:
+            src_rank = torch.distributed.get_rank()
+        if dst_rank is None:
+            dst_rank = get_pipeline_model_parallel_next_rank() #rank in World size
+            
+        src_dc = src_rank // dc_size
+        dst_dc = dst_rank // dc_size
+        
+        return src_dc != dst_dc
+    def add_cross_dc_delay(tensor_send_prev, tensor_send_next, prev_rank, next_rank):
+        try:
+            with torch.profiler.record_function(f"manual_cross_dc_delay"):
+                from megatron.training.global_vars import get_args
+                args = get_args()
+                if getattr(args, 'use_cross_dc', False):
+                    delay_ms = getattr(args, 'cross_dc_delay', 1.0)
+                    dc_size = getattr(args, 'dc_size', 1000)
+                    
+                    # 检查发送到上一个阶段是否跨DC
+                    if tensor_send_prev is not None:
+                        is_cross_dc_prev = get_is_cross_rank(torch.distributed.get_rank(), prev_rank, dc_size)
+                        if is_cross_dc_prev:
+                            import time
+                            time.sleep(delay_ms / 1000.0)  
+                            
+                    # 检查发送到下一个阶段是否跨DC，两个时延确保只触发一个
+                    elif tensor_send_next is not None:
+                        is_cross_dc_next = get_is_cross_rank(torch.distributed.get_rank(), next_rank, dc_size)
+                        if is_cross_dc_next:
+                            import time
+                            time.sleep(delay_ms / 1000.0) 
+        except:
+            pass
+    
     # Create placeholder tensors for receive in forward and backward directions
     # if needed.
     tensor_recv_prev_func = None
@@ -356,6 +397,13 @@ def _communicate(
     if tensor_recv_next_func is not None:
         tensor_recv_next = tensor_recv_next_func()
 
+    """
+    add cross dc delay
+    bug :
+        1. all comm delay will be added (in face, there should be no delay in recv comm)
+    """
+    add_cross_dc_delay(tensor_send_prev, tensor_send_next, prev_rank, next_rank)
+    
     p2p_reqs = p2p_func(
         tensor_send_prev=tensor_send_prev,
         tensor_recv_prev=tensor_recv_prev,

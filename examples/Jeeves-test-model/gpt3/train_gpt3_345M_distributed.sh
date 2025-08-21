@@ -19,6 +19,9 @@ VOCAB_FILE=$3 #<Specify path to file>/gpt2-vocab.json
 MERGE_FILE=$4 #<Specify path to file>/gpt2-merges.txt
 DATA_PATH=$5 #<Specify path and file prefix>_text_document
 
+# 运行目录为根目录，参数样例如下
+# ./example/Jeeves-test-model/ckpt/  ./example/Jeeves-test-model/tensorBoardLog/  ./myData/gpt2-vocab.json ./myData/gpt2-merges.txt ./myData/my-gpt2_text_document
+
 # torchrun的启动参数
 DISTRIBUTED_ARGS=(
     --nproc_per_node $GPUS_PER_NODE 
@@ -35,12 +38,12 @@ GPT_MODEL_ARGS=(
     --max-position-embeddings 2048 
     --attention-backend auto # Can use (flash/fused/unfused/local)，注意力实现方式
 )
-# 训练参数
+# 训练参数,减少iter加速训练，重点在trace分析
 TRAINING_ARGS=(
-    --micro-batch-size 1 
-    --global-batch-size 1536 # batch size = micro * dp * num_micro_batches
-    --rampup-batch-size 16 16 5859375 # 逐步增加batch size，初值，步长，总步数
-    --train-iters 500000 
+    --micro-batch-size 4 
+    --global-batch-size 128 # batch size = micro * dp * num_micro_batches, 2048
+    # --rampup-batch-size 4 4 5000 # 逐步增加batch size，初值，步长，总步数, 指定iter情况下不能设置此参数
+    --train-iters 10 
     --weight-decay 0.1 
     --adam-beta1 0.9 
     --adam-beta2 0.95 
@@ -51,7 +54,7 @@ TRAINING_ARGS=(
     --lr-decay-style cosine 
     --min-lr 6.0e-6
     --lr-warmup-fraction .001 
-    --lr-decay-iters 430000 
+    --lr-decay-iters 10
 )
 # 模型并行参数
 MODEL_PARALLEL_ARGS=(
@@ -63,22 +66,29 @@ DATA_ARGS=(
     --data-path $DATA_PATH 
     --vocab-file $VOCAB_FILE 
     --merge-file $MERGE_FILE 
-    --split 949,50,1
+    --split 90,9,1
 )
 
 EVAL_AND_LOGGING_ARGS=(
-    --log-interval 100
-    --save-interval 10000 
-    --eval-interval 1000 
+    --log-interval 5
+    --save-interval 5 
+    --eval-interval 1
     --save $CHECKPOINT_PATH 
     --load $CHECKPOINT_PATH 
-    --eval-iters 10
+    --eval-iters 5
     --tensorboard-dir $TENSORBOARD_LOGS_PATH 
 )
 
 # 添加perfetto的profiler配置参数，实现trace生成
 PERFETTO_PROFILE_ARGS=(
-    
+    --profile-log-ranks 0 1  #在哪些rank上生成trace
+)
+
+# 添加cross dc 配置参数
+CROSS_DC_ARGS=(
+    --use-cross-dc True #true，启用cross dc
+    --cross-dc-delay 20.0
+    --dc-size 1
 )
 
 torchrun ${DISTRIBUTED_ARGS[@]} pretrain_gpt.py \
@@ -86,4 +96,9 @@ torchrun ${DISTRIBUTED_ARGS[@]} pretrain_gpt.py \
     ${TRAINING_ARGS[@]} \
     ${MODEL_PARALLEL_ARGS[@]} \
     ${DATA_ARGS[@]} \
-    ${EVAL_AND_LOGGING_ARGS[@]}
+    ${EVAL_AND_LOGGING_ARGS[@]} \
+    ${PERFETTO_PROFILE_ARGS[@]} \
+    ${CROSS_DC_ARGS[@]}
+
+
+# bash ./examples/Jeeves-test-model/gpt3/train_gpt3_345M_distributed.sh ./example/Jeeves-test-model/ckpt/  ./example/Jeeves-test-model/tensorBoardLog/  ./myData/gpt2-vocab.json ./myData/gpt2-merges.txt ./myData/my-gpt2_text_document
