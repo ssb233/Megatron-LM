@@ -23,7 +23,7 @@ from megatron.core.utils import (
 )
 
 from .combined_1f1b import combined_1f1b_schedule_for_no_pipelining
-
+import torch.cuda.nvtx as nvtx
 # Types
 Shape = Union[List[int], torch.Size]
 
@@ -220,6 +220,11 @@ def forward_step_calc_loss(
 
     if config.timers is not None:
         config.timers('forward-compute').stop()
+        # from megatron.training.utils import print_rank_0
+        # print_rank_0(f"forward-compute time is {config.timers('forward-compute').elapsed()*1000} ms")
+    
+    # end of forward-compute
+    nvtx.range_pop()
 
     # Set the loss scale for the auxiliary loss of the MoE layer.
     # Since we use a trick to do backward on the auxiliary loss, we need to set the scale
@@ -338,6 +343,10 @@ def forward_step(
     """
     if config.timers is not None:
         config.timers('forward-compute', log_level=2).start()
+    
+    # nvtx tag
+    nvtx.range_push(f"forward-compute")
+    
 
     if is_first_microbatch and hasattr(model, 'set_is_first_microbatch'):
         model.set_is_first_microbatch()
@@ -394,6 +403,9 @@ def backward_step(input_tensor, output_tensor, output_tensor_grad, model_type, c
 
     if config.timers is not None:
         config.timers('backward-compute', log_level=2).start()
+    
+    # nvtx 
+    nvtx.range_push(f"backward-compute")
 
     # Retain the grad on the input_tensor.
     unwrap_input_tensor_grad = False
@@ -439,6 +451,11 @@ def backward_step(input_tensor, output_tensor, output_tensor_grad, model_type, c
 
     if config.timers is not None:
         config.timers('backward-compute').stop()
+        # from megatron.training.utils import print_rank_0
+        # print_rank_0(f"backward-compute time is {config.timers('backward-compute').elapsed()*1000} ms")
+    
+    # nvtx end of backward-compute
+    nvtx.range_pop()
 
     return input_tensor_grad
 
@@ -1898,7 +1915,7 @@ def forward_backward_pipelining_without_interleaving(
             recv_tensor_shapes, config, parallel_state.is_pipeline_first_stage()
         )
         
-        # 添加profiler标记
+        # 添加profiler标记，粒度太大，修改为nvtx标记
         with torch.profiler.record_function(f"warm_up_forward_pp{parallel_state.get_pipeline_model_parallel_rank()}"):
             output_tensor, num_tokens = forward_step(
                 forward_step_func,

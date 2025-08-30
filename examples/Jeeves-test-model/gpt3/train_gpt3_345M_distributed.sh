@@ -70,18 +70,19 @@ DATA_ARGS=(
 )
 
 EVAL_AND_LOGGING_ARGS=(
-    --log-interval 5
-    --save-interval 5 
+    --log-interval 1
+    --save-interval 10  # 保存间隔
     --eval-interval 1
     --save $CHECKPOINT_PATH 
-    --load $CHECKPOINT_PATH 
-    --eval-iters 5
+    # --load $CHECKPOINT_PATH 
+    --eval-iters 1
     --tensorboard-dir $TENSORBOARD_LOGS_PATH 
 )
 
 # 添加perfetto的profiler配置参数，实现trace生成
 PERFETTO_PROFILE_ARGS=(
     --profile-log-ranks 0 1  #在哪些rank上生成trace
+    # --profile-memory-analysis-path ./example/memoryLog/memorylog
 )
 
 # 添加cross dc 配置参数
@@ -89,6 +90,15 @@ CROSS_DC_ARGS=(
     --use-cross-dc True #true，启用cross dc
     --cross-dc-delay 20.0
     --dc-size 1
+    --cross-dc-comm-delay 20.0 
+)
+
+# 添加Jeeves调度参数
+JEEVES_SCHEDULE_ARGS=(
+    --jeeves-use-stage-division False    #启用非均匀划分
+    --jeeves-comm-aware False    # 启用commAware
+    --jeeves-memory-aware False  # 启用memory aware
+    --jeeves-intra-replica-coordinate False # 启用intra replica coordinate
 )
 
 torchrun ${DISTRIBUTED_ARGS[@]} pretrain_gpt.py \
@@ -98,7 +108,17 @@ torchrun ${DISTRIBUTED_ARGS[@]} pretrain_gpt.py \
     ${DATA_ARGS[@]} \
     ${EVAL_AND_LOGGING_ARGS[@]} \
     ${PERFETTO_PROFILE_ARGS[@]} \
-    ${CROSS_DC_ARGS[@]}
+    ${CROSS_DC_ARGS[@]} \
+    ${JEEVES_SCHEDULE_ARGS[@]}
 
+# nsys profile -o trace torchrun ${DISTRIBUTED_ARGS[@]} pretrain_gpt.py \
+#     ${GPT_MODEL_ARGS[@]} \
+#     ${TRAINING_ARGS[@]} \
+#     ${MODEL_PARALLEL_ARGS[@]} \
+#     ${DATA_ARGS[@]} \
+#     ${EVAL_AND_LOGGING_ARGS[@]} \
+#     ${PERFETTO_PROFILE_ARGS[@]} \
+#     ${CROSS_DC_ARGS[@]} \
+#     ${JEEVES_SCHEDULE_ARGS[@]}
 
 # bash ./examples/Jeeves-test-model/gpt3/train_gpt3_345M_distributed.sh ./example/Jeeves-test-model/ckpt/  ./example/Jeeves-test-model/tensorBoardLog/  ./myData/gpt2-vocab.json ./myData/gpt2-merges.txt ./myData/my-gpt2_text_document

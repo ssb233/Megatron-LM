@@ -16,4 +16,5 @@ onelogger.err
 test_cases/
 runs/
 myData/openwebtext_100k.jsonl
-example/Jeeves-test-model/
+myData/
+example/

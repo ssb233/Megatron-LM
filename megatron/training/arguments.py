@@ -82,6 +82,7 @@ def add_megatron_arguments(parser: argparse.ArgumentParser):
     # new parsers : by soybean
     parser = _add_profiler_args(parser)
     parser = _add_cross_dc_args(parser)
+    parser = _add_Jeeves_args(parser)
 
     return parser
 
@@ -1168,7 +1169,27 @@ def core_transformer_config_from_args(args, config_class=None):
     elif hasattr(args, 'kitchen_recipe_number') and args.kitchen_recipe_number is not None:
         kw_args['use_kitchen'] = True
         kw_args['quant_recipe'] = kitchen_quantization_recipe_config(args.kitchen_recipe_number)
-
+    
+    # 添加非均匀划分逻辑，由于下面直接传参到transformerConfig的构造函数了，因此这里要完成非均匀划分 : by soybean
+    if args.jeeves_use_stage_division and args.use_cross_dc:
+        # 跨DC的调度，并且启用非均匀切分，调用求解器获取切分配置
+        from tools.Jeeves.calculate_division import get_division_result
+        PP = args.pipeline_model_parallel_size
+        M = args.micro_batch_size
+        DP = 1 # 应该按照world size // 各种并行
+        CM = args.cross_dc_comm_delay
+        K = args.num_layers
+        Delay = args.cross_dc_delay
+        Memory_limit = [1,1,1,1] # 应该获取各个stage的内存限制
+        comm_aware = args.jeeves_comm_aware
+        memory_aware = args.jeeves_memory_aware
+        Ft = 1 # 应该获取前向计算时间
+        Bt = 2 # 应该获取后向计算时间
+        
+        divide_result = get_division_result(PP, M, DP, CM, K, Delay, Memory_limit, comm_aware, memory_aware, Ft, Bt)
+        if divide_result is not None:
+            kw_args['pipeline_model_parallel_layout'] = divide_result
+    
 
     # Return config.
     return config_class(**kw_args)
@@ -3028,6 +3049,7 @@ def _add_profiler_args(parser):
     group = parser.add_argument_group(title='profiler')
     group.add_argument('--profile-log-ranks', nargs='+', type=int, default=[0],
                        help='Global ranks to profile')
+    # group.add_argument('--profile-memory-analysis-path', type=str, default='./example/Jeeves-test-model/memory/memory.txt',)
     
     return parser
 
@@ -3040,4 +3062,18 @@ def _add_cross_dc_args(parser):
                        help='cross dc delay')
     group.add_argument('--dc-size', type=int, default=1000,
                        help='single dc rank num')
+    group.add_argument('--cross-dc-comm-delay', type=float, default=10.0,
+                       help='cross dc comm delay')
+    return parser
+
+def _add_Jeeves_args(parser):
+    group = parser.add_argument_group(title='Jeeves args')
+    group.add_argument('--jeeves-use-stage-division', type=bool, default=False,
+                       help='Jeeves algorithm : memory-aware stage division')
+    group.add_argument('--jeeves-comm-aware', type=bool, default=False,
+                       help='Jeeves algorithm : comm-aware')
+    group.add_argument('--jeeves-memory-aware', type=bool, default=False,
+                       help='Jeeves algorithm : memory-aware')
+    group.add_argument('--jeeves-intra-replica-coordinate', type=bool, default=False,
+                       help='Jeeves algorithm : intra-replica coordinate')
     return parser

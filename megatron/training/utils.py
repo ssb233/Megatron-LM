@@ -560,3 +560,19 @@ def get_batch_on_this_tp_rank(data_iterator):
 
 def update_use_dist_ckpt(args):
     args.use_dist_ckpt = args.ckpt_format != "torch"
+
+
+# add memory report to file : soybean (for memory analysis)
+def report_memory_to_file(name, path):
+    """Simple GPU memory report."""
+    mega_bytes = 1024.0 * 1024.0
+    string = name + ' memory (MB)'
+    string += ' | allocated: {}'.format(torch.cuda.memory_allocated() / mega_bytes)
+    string += ' | max allocated: {}'.format(torch.cuda.max_memory_allocated() / mega_bytes)
+    string += ' | reserved: {}'.format(torch.cuda.memory_reserved() / mega_bytes)
+    string += ' | max reserved: {}'.format(torch.cuda.max_memory_reserved() / mega_bytes)
+    # if mpu.get_data_parallel_rank() == 0:
+    #     print("[Rank {}] {}".format(torch.distributed.get_rank(), string), flush=True)
+    with open(path, "a") as f:
+        f.write(f"[Rank {torch.distributed.get_rank()}] {string}\n")
+        

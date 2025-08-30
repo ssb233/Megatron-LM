@@ -13,7 +13,7 @@ from megatron.core.parallel_state import (
     get_pipeline_model_parallel_world_size,
 )
 from megatron.core.utils import nvtx_decorator
-
+import torch.cuda.nvtx as nvtx
 # Types
 Shape = Union[List[int], torch.Size]
 
@@ -444,6 +444,7 @@ def recv_forward(
     else:
         if config.timers is not None:
             config.timers('forward-recv', log_level=2).start()
+        nvtx.range_push(f"forward-recv")
         input_tensor, _, _ = _communicate(
             tensor_send_next=None,
             tensor_send_prev=None,
@@ -454,6 +455,7 @@ def recv_forward(
         )
         if config.timers is not None:
             config.timers('forward-recv').stop()
+        nvtx.range_pop()
     return input_tensor
 
 
@@ -470,6 +472,7 @@ def recv_backward(
     else:
         if config.timers is not None:
             config.timers('backward-recv', log_level=2).start()
+        nvtx.range_push(f"backward-recv")
         _, output_tensor_grad, _ = _communicate(
             tensor_send_next=None,
             tensor_send_prev=None,
@@ -480,6 +483,7 @@ def recv_backward(
         )
         if config.timers is not None:
             config.timers('backward-recv').stop()
+        nvtx.range_pop()
     return output_tensor_grad
 
 
@@ -495,6 +499,7 @@ def send_forward(
     if not is_last_stage:
         if config.timers is not None:
             config.timers('forward-send', log_level=2).start()
+        nvtx.range_push(f"forward-send")
         _communicate(
             tensor_send_next=output_tensor,
             tensor_send_prev=None,
@@ -505,6 +510,7 @@ def send_forward(
         )
         if config.timers is not None:
             config.timers('forward-send').stop()
+        nvtx.range_pop()
 
 
 @nvtx_decorator()
@@ -518,6 +524,7 @@ def send_backward(
     if not is_first_stage:
         if config.timers is not None:
             config.timers('backward-send', log_level=2).start()
+        nvtx.range_push(f"backward-send")
         _communicate(
             tensor_send_next=None,
             tensor_send_prev=input_tensor_grad,
@@ -528,6 +535,7 @@ def send_backward(
         )
         if config.timers is not None:
             config.timers('backward-send').stop()
+        nvtx.range_pop()
 
 
 @nvtx_decorator()
@@ -546,6 +554,7 @@ def send_forward_recv_backward(
     else:
         if config.timers is not None:
             config.timers('forward-send-backward-recv', log_level=2).start()
+        nvtx.range_push(f"forward-send-backward-recv")
         _, output_tensor_grad, _ = _communicate(
             tensor_send_next=output_tensor,
             tensor_send_prev=None,
@@ -556,6 +565,7 @@ def send_forward_recv_backward(
         )
         if config.timers is not None:
             config.timers('forward-send-backward-recv').stop()
+        nvtx.range_pop()
     return output_tensor_grad
 
 
@@ -575,6 +585,7 @@ def send_backward_recv_forward(
     else:
         if config.timers is not None:
             config.timers('backward-send-forward-recv', log_level=2).start()
+        nvtx.range_push('backward-send-forward-recv')
         input_tensor, _, _ = _communicate(
             tensor_send_next=None,
             tensor_send_prev=input_tensor_grad,
@@ -585,6 +596,7 @@ def send_backward_recv_forward(
         )
         if config.timers is not None:
             config.timers('backward-send-forward-recv').stop()
+        nvtx.range_pop()
     return input_tensor
 
 

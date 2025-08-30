@@ -1791,7 +1791,8 @@ def training_log(
                 num_microbatches = get_num_microbatches()
                 report_theoretical_memory(args, num_microbatches=num_microbatches, verbose=True)
             report_memory(f'(after {iteration} iterations)')
-            report_memory_flag = False
+            # report_memory_flag = False
+            # 避免修改为false，保证每个iter都会报告内存情况
         timers.log(timers_to_log, normalizer=args.log_interval)
 
     return report_memory_flag
@@ -2259,69 +2260,130 @@ def train(
     def my_trace_handler(prof):
         #print(prof.key_averages().table(
         #sort_by="self_cuda_time_total", row_limit=-1))
-        #if torch.distributed.get_rank() == 0:
-        # print(f"print profiling data of rank {torch.distributed.get_rank()} as following:\n" + prof.key_averages().table(
-        #         sort_by="self_cuda_time_total", row_limit=20))
-            #print("running into trace_handler............................................................")
-            #with open(f"/workspace/infrawaves/tmp/profiling_rank0_{iteration}", 'w') as file:
-                #   file.write(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=-1))
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         trace_path = f"./example/profiler_log/{timestamp}"
         os.makedirs(trace_path, exist_ok=True)
+        if torch.distributed.get_rank() == 0:
+            # print(f"print profiling data of rank {torch.distributed.get_rank()} as following:\n" + prof.key_averages().table(
+            #         sort_by="self_cuda_time_total", row_limit=20))
+            print("running into trace_handler............................................................")
+            with open(f"{trace_path}/memory_rank_{str(torch.distributed.get_rank())}_iter_{str(iteration)}", 'w') as file:
+                  file.write(prof.key_averages().table(sort_by="self_cuda_memory_usage", row_limit=-1))
         prof.export_chrome_trace(f"{trace_path}/trace_rank_" + str(torch.distributed.get_rank()) + "_iter_" + str(iteration) + ".json")
 
     # Run training iterations till done.
-    while iteration < args.train_iters:
-        
-        # use my_trace_handler to handle profiling : by soybean
-        if iteration == 2 and torch.distributed.get_rank() in args.profile_log_ranks:
-            with torch.profiler.profile(
-                        activities=[
-                            torch.profiler.ProfilerActivity.CPU,
-                            torch.profiler.ProfilerActivity.CUDA,
-                        ],
-                        schedule=torch.profiler.schedule(
-                            wait=0,
-                            warmup=0,
-                            active=1,
-                            repeat=1),
-                        on_trace_ready=my_trace_handler
-                        # record_shapes=True,
-                        # profile_memory=True,
-                        # with_stack=True
-            ) as p:
-                
-                train_step(forward_step_func,
-                            train_data_iterator,
-                            model,
-                            optimizer,
-                            opt_param_scheduler,
-                            config,
-                            forward_backward_func)
-                p.step()
-        
-        if args.profile and torch.distributed.get_rank() in args.profile_ranks:
-            if args.use_pytorch_profiler:
-                prof.step()    
-            elif iteration == args.profile_step_start:
-                torch.cuda.cudart().cudaProfilerStart()
-                torch.autograd.profiler.emit_nvtx(record_shapes=True).__enter__()
+    with torch.profiler.profile(
+                    activities=[
+                        torch.profiler.ProfilerActivity.CPU,
+                        torch.profiler.ProfilerActivity.CUDA,
+                    ],
+                    schedule=torch.profiler.schedule(
+                        wait=6,
+                        warmup=1,
+                        active=1,
+                        repeat=1),
+                    on_trace_ready=my_trace_handler,
+                    # record_shapes=True,       # 记录输入 shape
+                    # profile_memory=True,      # 记录内存分配
+                    # # with_stack=True,          # 记录调用栈
+                    # with_flops=True,          # 记录 FLOPs
+                    # with_modules=True         # 记录对应的 nn.Module
+        ) as p:
+        # 下面这里缩进了
+        while iteration < args.train_iters:
+            
+            # use my_trace_handler to handle profiling : by soybean
+            # if iteration == 2 and torch.distributed.get_rank() in args.profile_log_ranks:
+                # with torch.profiler.profile(
+                #             activities=[
+                #                 torch.profiler.ProfilerActivity.CPU,
+                #                 torch.profiler.ProfilerActivity.CUDA,
+                #             ],
+                #             schedule=torch.profiler.schedule(
+                #                 wait=0,
+                #                 warmup=0,
+                #                 active=1,
+                #                 repeat=1),
+                #             on_trace_ready=my_trace_handler,
+                #             # record_shapes=True,
+                #             profile_memory=True
+                #             # with_stack=True
+                # ) as p:
+                    
+            #         train_step(forward_step_func,
+            #                     train_data_iterator,
+            #                     model,
+            #                     optimizer,
+            #                     opt_param_scheduler,
+            #                     config,
+            #                     forward_backward_func)
+            #         p.step()
+            
+            if args.profile and torch.distributed.get_rank() in args.profile_ranks:
+                if args.use_pytorch_profiler:
+                    prof.step()    
+                elif iteration == args.profile_step_start:
+                    torch.cuda.cudart().cudaProfilerStart()
+                    torch.autograd.profiler.emit_nvtx(record_shapes=True).__enter__()
 
-        ft_integration.on_checkpointing_start()
-        maybe_finalize_async_save(blocking=False)
-        ft_integration.on_checkpointing_end(is_async_finalization=True)
+            ft_integration.on_checkpointing_start()
+            maybe_finalize_async_save(blocking=False)
+            ft_integration.on_checkpointing_end(is_async_finalization=True)
 
-        # Update number of microbatches first without consistency check to decide if a
-        # checkpoint should be saved. If the number of microbatches is different
-        # from the previous iteration, save a checkpoint. Then run consistency check
-        # to make sure training configuration is still valid.
-        update_num_microbatches(args.consumed_train_samples, consistency_check=False, verbose=True)
-        if get_num_microbatches() != num_microbatches and iteration != 0:
-            assert get_num_microbatches() > num_microbatches, (
-                f"Number of microbatches should be increasing due to batch size rampup; "
-                f"instead going from {num_microbatches} to {get_num_microbatches()}"
+            # Update number of microbatches first without consistency check to decide if a
+            # checkpoint should be saved. If the number of microbatches is different
+            # from the previous iteration, save a checkpoint. Then run consistency check
+            # to make sure training configuration is still valid.
+            update_num_microbatches(args.consumed_train_samples, consistency_check=False, verbose=True)
+            if get_num_microbatches() != num_microbatches and iteration != 0:
+                assert get_num_microbatches() > num_microbatches, (
+                    f"Number of microbatches should be increasing due to batch size rampup; "
+                    f"instead going from {num_microbatches} to {get_num_microbatches()}"
+                )
+                if args.save is not None:
+                    save_checkpoint_and_time(
+                        iteration,
+                        model,
+                        optimizer,
+                        opt_param_scheduler,
+                        num_floating_point_operations_so_far,
+                        checkpointing_context,
+                        train_data_iterator=train_data_iterator,
+                    )
+            num_microbatches = get_num_microbatches()
+            update_num_microbatches(args.consumed_train_samples, consistency_check=True, verbose=True)
+
+            # Completely skip iteration if needed.
+            if iteration in args.iterations_to_skip:
+                # Dummy train_step to fast forward train_data_iterator.
+                dummy_train_step(train_data_iterator)
+                iteration += 1
+                batch_size = (
+                    mpu.get_data_parallel_world_size() * args.micro_batch_size * get_num_microbatches()
+                )
+                args.consumed_train_samples += batch_size
+                args.skipped_train_samples += batch_size
+                continue
+
+            # Run training step.
+            args.curr_iteration = iteration
+            
+            
+            ft_integration.on_training_step_start()
+            (
+                loss_dict,
+                skipped_iter,
+                should_checkpoint,
+                should_exit,
+                exit_code,
+                grad_norm,
+                num_zeros_in_grad,
+            ) = train_step(
+                forward_step_func, train_data_iterator, model, optimizer, opt_param_scheduler, config, forward_backward_func
             )
-            if args.save is not None:
+            p.step()
+            ft_integration.on_training_step_end()
+            if should_checkpoint:
                 save_checkpoint_and_time(
                     iteration,
                     model,
@@ -2331,179 +2393,139 @@ def train(
                     checkpointing_context,
                     train_data_iterator=train_data_iterator,
                 )
-        num_microbatches = get_num_microbatches()
-        update_num_microbatches(args.consumed_train_samples, consistency_check=True, verbose=True)
+            if should_exit:
+                break
 
-        # Completely skip iteration if needed.
-        if iteration in args.iterations_to_skip:
-            # Dummy train_step to fast forward train_data_iterator.
-            dummy_train_step(train_data_iterator)
+            # Enable forward pre-hooks after first set of forward and backward passes.
+            # When running in fp16, skip all NaN iterations until steady-state loss scaling value
+            # is reached.
+            if iteration == start_iteration:
+                if skipped_iter:
+                    # Only enable forward pre-hook after a training step has successfully run. Relevant
+                    # for fp16 codepath where first XX iterations are skipped until steady-state loss
+                    # scale value is reached.
+                    start_iteration = iteration + 1
+                else:
+                    # Enable forward pre-hook after training step has successfully run. All subsequent
+                    # forward passes will use the forward pre-hook / `param_sync_func` in
+                    # `forward_backward_func`.
+                    if should_disable_forward_pre_hook(args):
+                        enable_forward_pre_hook(model)
+                        config.param_sync_func = param_sync_func
+                        pre_hook_enabled = True
+
             iteration += 1
             batch_size = (
                 mpu.get_data_parallel_world_size() * args.micro_batch_size * get_num_microbatches()
             )
             args.consumed_train_samples += batch_size
-            args.skipped_train_samples += batch_size
-            continue
+            num_skipped_samples_in_batch = (
+                get_current_global_batch_size() - get_current_running_global_batch_size()
+            )
+            if args.decrease_batch_size_if_needed:
+                assert num_skipped_samples_in_batch >= 0
+            else:
+                assert num_skipped_samples_in_batch == 0
+            args.skipped_train_samples += num_skipped_samples_in_batch
+            num_floating_point_operations_in_batch = num_floating_point_operations(args, batch_size)
+            num_floating_point_operations_so_far += num_floating_point_operations_in_batch
+            num_floating_point_operations_since_last_log_event += num_floating_point_operations_in_batch
 
-        # Run training step.
-        args.curr_iteration = iteration
-        ft_integration.on_training_step_start()
-        (
-            loss_dict,
-            skipped_iter,
-            should_checkpoint,
-            should_exit,
-            exit_code,
-            grad_norm,
-            num_zeros_in_grad,
-        ) = train_step(
-            forward_step_func, train_data_iterator, model, optimizer, opt_param_scheduler, config, forward_backward_func
-        )
-        ft_integration.on_training_step_end()
-        if should_checkpoint:
-            save_checkpoint_and_time(
+            # Logging.
+            if not optimizer.is_stub_optimizer:
+                loss_scale = optimizer.get_loss_scale().item()
+            else:
+                loss_scale = 1.0
+            params_norm = None
+
+            if args.log_params_norm:
+                params_norm = calc_params_l2_norm(model)
+            learning_rate = None
+            decoupled_learning_rate = None
+            for param_group in optimizer.param_groups:
+                if len(param_group['params']) == 0:
+                    continue
+                if param_group['is_decoupled_lr']:
+                    decoupled_learning_rate = param_group['lr']
+                else:
+                    learning_rate = param_group['lr']
+            report_memory_flag = training_log(
+                loss_dict,
+                total_loss_dict,
+                learning_rate,
+                decoupled_learning_rate,
                 iteration,
+                loss_scale,
+                report_memory_flag,
+                skipped_iter,
+                grad_norm,
+                params_norm,
+                num_zeros_in_grad,
+            )
+
+            # Evaluation.
+            if args.eval_interval and iteration % args.eval_interval == 0 and args.do_valid:
+                if args.log_energy:
+                    energy_monitor.pause()
+                timers('interval-time').stop()
+                if should_disable_forward_pre_hook(args):
+                    disable_forward_pre_hook(model)
+                    pre_hook_enabled = False
+                if args.manual_gc and args.manual_gc_eval:
+                    # Collect all objects.
+                    gc.collect()
+                prefix = f'iteration {iteration}'
+                timers('eval-time', log_level=0).start(barrier=True)
+                evaluate_and_print_results(
+                    prefix,
+                    forward_step_func,
+                    valid_data_iterator,
+                    model,
+                    iteration,
+                    process_non_loss_data_func,
+                    config,
+                    verbose=False,
+                    write_to_tensorboard=True,
+                    non_loss_data_func=non_loss_data_func,
+                )
+                eval_duration += timers('eval-time').elapsed()
+                eval_iterations += args.eval_iters
+                timers('eval-time').stop()
+                one_logger_utils.track_e2e_metrics()
+
+                if args.manual_gc and args.manual_gc_eval:
+                    # Collect only the objects created and used in evaluation.
+                    gc.collect(generation=0)
+                if should_disable_forward_pre_hook(args):
+                    enable_forward_pre_hook(model)
+                    pre_hook_enabled = True
+                timers('interval-time', log_level=0).start(barrier=True)
+                if args.log_energy:
+                    energy_monitor.resume()
+
+            # Miscellaneous post-training-step functions (e.g., FT heartbeats, GC).
+            # Some of these only happen at specific iterations.
+            post_training_step_callbacks(
                 model,
                 optimizer,
                 opt_param_scheduler,
+                iteration,
+                prof,
+                num_floating_point_operations_since_last_log_event,
+            )
+
+            # Checkpoint and decide whether to exit.
+            should_exit = checkpoint_and_decide_exit(
+                model,
+                optimizer,
+                opt_param_scheduler,
+                iteration,
                 num_floating_point_operations_so_far,
                 checkpointing_context,
-                train_data_iterator=train_data_iterator,
+                train_data_iterator,
             )
-        if should_exit:
-            break
-
-        # Enable forward pre-hooks after first set of forward and backward passes.
-        # When running in fp16, skip all NaN iterations until steady-state loss scaling value
-        # is reached.
-        if iteration == start_iteration:
-            if skipped_iter:
-                # Only enable forward pre-hook after a training step has successfully run. Relevant
-                # for fp16 codepath where first XX iterations are skipped until steady-state loss
-                # scale value is reached.
-                start_iteration = iteration + 1
-            else:
-                # Enable forward pre-hook after training step has successfully run. All subsequent
-                # forward passes will use the forward pre-hook / `param_sync_func` in
-                # `forward_backward_func`.
-                if should_disable_forward_pre_hook(args):
-                    enable_forward_pre_hook(model)
-                    config.param_sync_func = param_sync_func
-                    pre_hook_enabled = True
-
-        iteration += 1
-        batch_size = (
-            mpu.get_data_parallel_world_size() * args.micro_batch_size * get_num_microbatches()
-        )
-        args.consumed_train_samples += batch_size
-        num_skipped_samples_in_batch = (
-            get_current_global_batch_size() - get_current_running_global_batch_size()
-        )
-        if args.decrease_batch_size_if_needed:
-            assert num_skipped_samples_in_batch >= 0
-        else:
-            assert num_skipped_samples_in_batch == 0
-        args.skipped_train_samples += num_skipped_samples_in_batch
-        num_floating_point_operations_in_batch = num_floating_point_operations(args, batch_size)
-        num_floating_point_operations_so_far += num_floating_point_operations_in_batch
-        num_floating_point_operations_since_last_log_event += num_floating_point_operations_in_batch
-
-        # Logging.
-        if not optimizer.is_stub_optimizer:
-            loss_scale = optimizer.get_loss_scale().item()
-        else:
-            loss_scale = 1.0
-        params_norm = None
-
-        if args.log_params_norm:
-            params_norm = calc_params_l2_norm(model)
-        learning_rate = None
-        decoupled_learning_rate = None
-        for param_group in optimizer.param_groups:
-            if len(param_group['params']) == 0:
-                continue
-            if param_group['is_decoupled_lr']:
-                decoupled_learning_rate = param_group['lr']
-            else:
-                learning_rate = param_group['lr']
-        report_memory_flag = training_log(
-            loss_dict,
-            total_loss_dict,
-            learning_rate,
-            decoupled_learning_rate,
-            iteration,
-            loss_scale,
-            report_memory_flag,
-            skipped_iter,
-            grad_norm,
-            params_norm,
-            num_zeros_in_grad,
-        )
-
-        # Evaluation.
-        if args.eval_interval and iteration % args.eval_interval == 0 and args.do_valid:
-            if args.log_energy:
-                energy_monitor.pause()
-            timers('interval-time').stop()
-            if should_disable_forward_pre_hook(args):
-                disable_forward_pre_hook(model)
-                pre_hook_enabled = False
-            if args.manual_gc and args.manual_gc_eval:
-                # Collect all objects.
-                gc.collect()
-            prefix = f'iteration {iteration}'
-            timers('eval-time', log_level=0).start(barrier=True)
-            evaluate_and_print_results(
-                prefix,
-                forward_step_func,
-                valid_data_iterator,
-                model,
-                iteration,
-                process_non_loss_data_func,
-                config,
-                verbose=False,
-                write_to_tensorboard=True,
-                non_loss_data_func=non_loss_data_func,
-            )
-            eval_duration += timers('eval-time').elapsed()
-            eval_iterations += args.eval_iters
-            timers('eval-time').stop()
-            one_logger_utils.track_e2e_metrics()
-
-            if args.manual_gc and args.manual_gc_eval:
-                # Collect only the objects created and used in evaluation.
-                gc.collect(generation=0)
-            if should_disable_forward_pre_hook(args):
-                enable_forward_pre_hook(model)
-                pre_hook_enabled = True
-            timers('interval-time', log_level=0).start(barrier=True)
-            if args.log_energy:
-                energy_monitor.resume()
-
-        # Miscellaneous post-training-step functions (e.g., FT heartbeats, GC).
-        # Some of these only happen at specific iterations.
-        post_training_step_callbacks(
-            model,
-            optimizer,
-            opt_param_scheduler,
-            iteration,
-            prof,
-            num_floating_point_operations_since_last_log_event,
-        )
-
-        # Checkpoint and decide whether to exit.
-        should_exit = checkpoint_and_decide_exit(
-            model,
-            optimizer,
-            opt_param_scheduler,
-            iteration,
-            num_floating_point_operations_so_far,
-            checkpointing_context,
-            train_data_iterator,
-        )
-        if should_exit:
-            break
+            if should_exit:
+                break
 
     one_logger_utils.track_e2e_metrics()
 

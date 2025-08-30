@@ -269,11 +269,11 @@ def report_theoretical_memory(args, num_microbatches=None, verbose=False):
     )
 
     # Formulae here assume sequence parallelism and selective activation recomputation.
-    if not args.sequence_parallel or args.recompute_granularity != 'selective':
-        print(
-            f"Theoretical memory footprints: weight and optimizer={weight_and_optimizer_memory:.2f} MB"
-        )
-        return
+    # if not args.sequence_parallel or args.recompute_granularity != 'selective':
+    #     print(
+    #         f"Theoretical memory footprints: weight and optimizer={weight_and_optimizer_memory:.2f} MB"
+    #     )
+    #     return
 
     activation_memory = (
         compute_activation_memory(args, num_microbatches=num_microbatches, verbose=verbose)
