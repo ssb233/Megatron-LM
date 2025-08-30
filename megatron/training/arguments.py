@@ -54,6 +54,7 @@ def add_megatron_arguments(parser: argparse.ArgumentParser):
     parser = _add_checkpointing_args(parser)
     parser = _add_mixed_precision_args(parser)
     parser = _add_distributed_args(parser)
+    parser = _add_cross_datacenter_args(parser)
     parser = _add_validation_args(parser)
     parser = _add_data_args(parser)
     parser = _add_tokenizer_args(parser)
@@ -81,7 +82,6 @@ def add_megatron_arguments(parser: argparse.ArgumentParser):
     
     # new parsers : by soybean
     parser = _add_profiler_args(parser)
-    parser = _add_cross_dc_args(parser)
     parser = _add_Jeeves_args(parser)
 
     return parser
@@ -1171,24 +1171,74 @@ def core_transformer_config_from_args(args, config_class=None):
         kw_args['quant_recipe'] = kitchen_quantization_recipe_config(args.kitchen_recipe_number)
     
     # 添加非均匀划分逻辑，由于下面直接传参到transformerConfig的构造函数了，因此这里要完成非均匀划分 : by soybean
+    # 现在集成性能监控和优化求解器
     if args.jeeves_use_stage_division and args.use_cross_dc:
-        # 跨DC的调度，并且启用非均匀切分，调用求解器获取切分配置
-        from tools.Jeeves.calculate_division import get_division_result
-        PP = args.pipeline_model_parallel_size
-        M = args.micro_batch_size
-        DP = 1 # 应该按照world size // 各种并行
-        CM = args.cross_dc_comm_delay
-        K = args.num_layers
-        Delay = args.cross_dc_delay
-        Memory_limit = [1,1,1,1] # 应该获取各个stage的内存限制
-        comm_aware = args.jeeves_comm_aware
-        memory_aware = args.jeeves_memory_aware
-        Ft = 1 # 应该获取前向计算时间
-        Bt = 2 # 应该获取后向计算时间
+        from megatron.core.performance_monitor import get_performance_profiler, initialize_performance_profiler
+        from megatron.training import print_rank_0
         
-        divide_result = get_division_result(PP, M, DP, CM, K, Delay, Memory_limit, comm_aware, memory_aware, Ft, Bt)
-        if divide_result is not None:
-            kw_args['pipeline_model_parallel_layout'] = divide_result
+        print_rank_0("启用跨DC智能阶段划分...")
+        
+        # 初始化性能监控器
+        profiler = initialize_performance_profiler(
+            enable_detailed_profiling=args.jeeves_enable_profiling,
+            max_history_size=args.jeeves_profile_iters * 2
+        )
+        
+        try:
+            from tools.Jeeves.calculate_division import get_division_result
+            
+            # 基本参数
+            PP = args.pipeline_model_parallel_size
+            M = args.micro_batch_size
+            K = args.num_layers
+            
+            # 计算DP (数据并行度)
+            world_size = torch.distributed.get_world_size() if torch.distributed.is_initialized() else 1
+            TP = getattr(args, 'tensor_model_parallel_size', 1)
+            CP = getattr(args, 'context_parallel_size', 1)
+            DP = world_size // (PP * TP * CP)
+            
+            # 延迟参数 (统一使用新参数)
+            propagation_delay = args.cross_dc_propagation_delay
+            transmission_delay = args.cross_dc_transmission_delay
+            # 为了向后兼容，如果设置了旧参数，则使用旧参数
+            if hasattr(args, 'cross_dc_delay') and args.cross_dc_delay != 50.0:
+                propagation_delay = args.cross_dc_delay
+            
+            # 通信开销 (这里先使用简化估计，后续可以通过profiling获得准确值)
+            CM = args.cross_dc_comm_delay if hasattr(args, 'cross_dc_comm_delay') else propagation_delay / 10
+            
+            # 内存限制 (这里先使用简化估计，后续通过profiling获得准确值)
+            # 假设每个stage内存相等，后续会被profiling数据覆盖
+            Memory_limit = [100] * PP  # 默认每个stage可以容纳100个激活
+            
+            # 计算时间 (这里先使用默认比例，后续通过profiling获得准确值)
+            Ft = 1.0  # 单层前向时间 (ms)
+            Bt = 2.0  # 单层后向时间 (ms)
+            
+            print_rank_0(f"优化参数: PP={PP}, M={M}, DP={DP}, K={K}")
+            print_rank_0(f"延迟参数: propagation_delay={propagation_delay}ms, transmission_delay={transmission_delay}ms/MB")
+            print_rank_0(f"启用选项: comm_aware={args.jeeves_comm_aware}, memory_aware={args.jeeves_memory_aware}")
+            
+            divide_result = get_division_result(
+                PP=PP, M=M, DP=DP, CM=CM, K=K, 
+                Delay=propagation_delay,
+                Memory_limit=Memory_limit,
+                comm_aware=args.jeeves_comm_aware,
+                memory_aware=args.jeeves_memory_aware,
+                Ft=Ft, Bt=Bt
+            )
+            
+            if divide_result is not None:
+                print_rank_0(f"优化求解完成，非均匀划分结果: {divide_result}")
+                kw_args['pipeline_model_parallel_layout'] = divide_result
+            else:
+                print_rank_0("优化求解失败，使用均匀划分")
+                
+        except ImportError as e:
+            print_rank_0(f"无法导入Jeeves求解器: {e}，使用均匀划分")
+        except Exception as e:
+            print_rank_0(f"优化求解过程出现异常: {e}，使用均匀划分")
     
 
     # Return config.
@@ -2457,6 +2507,38 @@ def _add_distributed_args(parser):
     return parser
 
 
+def _add_cross_datacenter_args(parser):
+    """添加跨数据中心训练的相关参数"""
+    group = parser.add_argument_group(title='cross-datacenter training')
+    
+    group.add_argument('--use-cross-dc', action='store_true', default=False,
+                      help='Enable cross-datacenter training with intelligent partitioning')
+    
+    # 延迟参数
+    group.add_argument('--cross-dc-propagation-delay', type=float, default=50.0,
+                      help='Cross-datacenter propagation delay in milliseconds (fixed physical delay)')
+    group.add_argument('--cross-dc-transmission-delay', type=float, default=0.1,
+                      help='Cross-datacenter transmission delay per MB in milliseconds (data-dependent delay)')
+    
+    # 数据中心配置
+    group.add_argument('--dc-size', type=int, default=8,
+                      help='Number of GPUs per datacenter for cross-DC detection')
+    
+    # 性能采样参数
+    group.add_argument('--cross-dc-profile-iters', type=int, default=5,
+                      help='Number of iterations to run for performance profiling before optimization')
+    group.add_argument('--cross-dc-enable-profiling', action='store_true', default=False,
+                      help='Enable detailed performance profiling for cross-DC optimization')
+    
+    # 兼容性参数（保留原有参数）
+    group.add_argument('--cross-dc-comm-delay', type=float, default=6.0,
+                      help='DEPRECATED: Use --cross-dc-propagation-delay instead. Communication delay for cross-DC')
+    group.add_argument('--cross-dc-delay', type=float, default=50.0,
+                      help='DEPRECATED: Use --cross-dc-propagation-delay instead. Cross-DC delay in milliseconds')
+    
+    return parser
+
+
 def _add_validation_args(parser):
     group = parser.add_argument_group(title='validation')
 
@@ -3046,34 +3128,33 @@ def _add_sft_args(parser):
 
 # Add profiler arguments : by soybean
 def _add_profiler_args(parser):
+    """添加性能监控相关参数"""
     group = parser.add_argument_group(title='profiler')
+    
     group.add_argument('--profile-log-ranks', nargs='+', type=int, default=[0],
                        help='Global ranks to profile')
-    # group.add_argument('--profile-memory-analysis-path', type=str, default='./example/Jeeves-test-model/memory/memory.txt',)
+    group.add_argument('--jeeves-enable-profiling', action='store_true', default=False,
+                       help='启用详细的性能监控')
+    group.add_argument('--jeeves-profile-iters', type=int, default=5,
+                       help='性能采样的iteration数量')
+    group.add_argument('--profile-memory-analysis-path', type=str, 
+                       default='./memory_analysis.txt',
+                       help='内存分析结果保存路径')
     
     return parser
 
-# Add cross dc arguments : by soybean
-def _add_cross_dc_args(parser):
-    group = parser.add_argument_group(title='cross dc')
-    group.add_argument('--use-cross-dc', type=bool, default=False,
-                       help='cross dc switch')
-    group.add_argument('--cross-dc-delay', type=float, default=10.0,
-                       help='cross dc delay')
-    group.add_argument('--dc-size', type=int, default=1000,
-                       help='single dc rank num')
-    group.add_argument('--cross-dc-comm-delay', type=float, default=10.0,
-                       help='cross dc comm delay')
-    return parser
 
 def _add_Jeeves_args(parser):
-    group = parser.add_argument_group(title='Jeeves args')
-    group.add_argument('--jeeves-use-stage-division', type=bool, default=False,
+    """添加Jeeves优化器参数"""
+    group = parser.add_argument_group(title='Jeeves optimizer')
+    
+    group.add_argument('--jeeves-use-stage-division', action='store_true', default=False,
                        help='Jeeves algorithm : memory-aware stage division')
-    group.add_argument('--jeeves-comm-aware', type=bool, default=False,
+    group.add_argument('--jeeves-comm-aware', action='store_true', default=False,
                        help='Jeeves algorithm : comm-aware')
-    group.add_argument('--jeeves-memory-aware', type=bool, default=False,
+    group.add_argument('--jeeves-memory-aware', action='store_true', default=False,
                        help='Jeeves algorithm : memory-aware')
-    group.add_argument('--jeeves-intra-replica-coordinate', type=bool, default=False,
+    group.add_argument('--jeeves-intra-replica-coordinate', action='store_true', default=False,
                        help='Jeeves algorithm : intra-replica coordinate')
+    
     return parser

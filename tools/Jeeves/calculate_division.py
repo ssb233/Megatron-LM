@@ -6,6 +6,14 @@ from tqdm import tqdm  # 可选：用于显示进度条
 print(gp.gurobi.version())
 print(gp.__file__)
 
+# 定义print_rank_0函数，如果不在megatron环境中则使用普通print
+def print_rank_0(message):
+    try:
+        from megatron.training import print_rank_0 as megatron_print
+        megatron_print(message)
+    except ImportError:
+        print(message)
+
 
 def get_division_result(PP, M, DP, CM, K, Delay, Memory_limit, comm_aware=True, memory_aware=True, Ft=1, Bt=2):
     # 根据comm_aware和memory-aware的参数，选择对应的求解方式
@@ -241,7 +249,7 @@ def get_heuristic_division_single(PP, M, DP, CM, K, Delay, Memory_limit, Ks_list
     
     
 
-def get_best_devision(PP, M, DP, CM, K, Delay, Memory_limit, Ft, Bt):
+def get_best_devision(PP, M, DP, CM, K, Delay, Memory_limit, comm_aware=True, memory_aware=True, Ft=1, Bt=2):
     """
     该函数使用Gurobi优化器建立并求解一个混合整数规划模型，用于寻找最优的划分方案。
     
@@ -249,156 +257,117 @@ def get_best_devision(PP, M, DP, CM, K, Delay, Memory_limit, Ft, Bt):
     - PP: 总阶段数（pipeline stages）
     - M: 总的microbatch的数量
     - DP: 数据并行度（data parallelism degree）
-    - CM: 通信开销（communication cost）
+    - CM: 通信开销（communication cost）ms
     - K: 所有的模型层数总和（sum of x values）
-    - Delay: 延迟常量（delay constant）
+    - Delay: 延迟常量（delay constant）ms
     - Memory_limit: 内存上限（memory constraint）, list[]，各个stage的limit不一定相同，单位为总剩余内存 / 单层激活占用
-    - Ft: 前向时间（forward time）单层
-    - Bt: 后向时间（backward time）
+    - comm_aware: 是否考虑通信感知优化
+    - memory_aware: 是否考虑内存感知优化
+    - Ft: 前向时间（forward time）单层 ms
+    - Bt: 后向时间（backward time）单层 ms
 
     返回值：
     - x_vals: 每个阶段分配的资源数量列表（最优解）
-    
-    前后向时间应该当作1和2了
     """
-    # 每个stage划分到的模型的层数量，这里可能需要修改为整数
-    model = gp.Model()
-    x = model.addVars(PP, lb=0, name="x") 
-    
-    # optimal_num: 每个stage的，无内存限制下的不引入额外的延迟的最优的激活的microbatch的数量（这个一开始应该也是不确定的）
-    optimal_num = model.addVars(PP, lb=0, vtype=GRB.INTEGER, name="optimal_num")
-    
-    # delta_time: 由于内存限制导致的microbatch的延后，带来的额外延迟时间
-    delta_time = model.addVar(lb=0, name="delta_time")
-    
-    # actual_num: 每个stage的，实际使用的激活的microbatch的数量
-    actual_num = model.addVars(PP, lb=0, vtype=GRB.INTEGER, name="actual_num")
-    
-    # num_delta: extra_time的周期
-    num_delta = model.addVars(PP, lb=0, vtype=GRB.INTEGER, name="num_delta")
-    
-    
-    # t: 最终目标函数变量，表示最大执行时间
-    t = model.addVar(lb=0, name="t")
-
-    BIG_M = 1e6  # 大M法中的大常数，用于线性化逻辑约束
-    
-    # z: 二进制变量，用于判断optimal_num与actual_num是否不同
-    z = model.addVars(PP, vtype=GRB.BINARY, name="z")
-
-    # ========== 添加内存相关约束 ==========
-    for s in range(int(PP / 2)):
-        # 实际的是要考虑内存的，最优的是不考虑内存的，因此要小于等于
-        model.addConstr(actual_num[s] <= optimal_num[s], name=f"actual_num_s{s}_leq_optimal")
+    try:
+        # 创建Gurobi模型
+        model = gp.Model("CrossDC_OptimalPartition")
+        model.Params.OutputFlag = 0  # 关闭输出
+        model.Params.TimeLimit = 300  # 设置5分钟时间限制
+        model.Params.MIPGap = 0.01   # 设置1%的优化间隙
+        model.Params.NumericFocus = 3  # 提高数值稳定性
         
-        # 实际的激活值的数量*模型层数不能超过内存限制，要统一单位
-        model.addConstr(actual_num[s] * x[s] <= Memory_limit[s], name=f"mem_limit_s{s}")
+        # 决策变量：每个stage划分到的模型层数量
+        x = model.addVars(PP, lb=1, vtype=GRB.INTEGER, name="x") 
         
-        # 上界约束：确保资源分配不会导致过高的计算负载
-        f1 = gp.quicksum((Ft + Bt) * x[i] for i in range(s, PP)) + 2 * CM + 2 * Delay
-        # f2 = 3 * 2 * optimal_num[s] # 这里应该是把模型层数当作2了？？？，这是stage0上第一个microbatch的反向的最晚结束时间???
-        f2 = (Ft + Bt) * (K // PP) * optimal_num[s]
-        model.addConstr(f1 <= f2, name=f"opt_bound_s{s}")
+        # 目标函数变量：最大执行时间
+        t = model.addVar(lb=0, name="t")
 
-    # ========== 添加时间相关约束 ==========
-    for stage in range(PP):
-        # 第一类时间约束：计算bound公式
-        obj_1 = gp.quicksum((Ft + Bt) * x[i] for i in range(stage + 1)) # 到当前stage的前后向
-        obj_1 += (M - 1) * (Ft + Bt) * x[stage] # 中间必算的M-1个microbatch的前后向
-        if stage >= PP / 2:
-            obj_1 += CM * (DP + 1) + 2 * Delay
-        model.addConstr(t >= obj_1, name=f"MaxConstraint_{stage}_1")
-
-        # 第二类时间约束：通讯bound公式
-        obj_2 = gp.quicksum((Ft + Bt) * x[i] for i in range(PP))
-        obj_2 += (DP + 1) * CM + 2 * Delay
-        obj_2 += (Ft + Bt) * x[stage] * (M - 1)
-
-        if stage < PP / 2:
-            # 当optimal_num != actual_num时，引入额外的时间开销
-            
-            # expr_part: 计算划分差异带来的额外时间项
-            expr_part = model.addVar(lb=-gp.GRB.INFINITY, name=f"expr_part_{stage}")
-            model.addConstr(expr_part == (
-                (optimal_num[stage] - actual_num[stage] - 1) * (Ft + Bt) * x[stage]
-                + gp.quicksum((Ft + Bt) * x[i] for i in range(stage, PP))
-                + (2) * CM
-                + 2 * Delay
-                - actual_num[stage] * x[stage] * (Ft + Bt)
-            ), name=f"expr_part_def_{stage}")
-            
-            # product: 周期 * 单周期extraTime
-            product = model.addVar(lb=-gp.GRB.INFINITY, name=f"product_{stage}")
-            model.addConstr(product == num_delta[stage] * expr_part, name=f"product_def_{stage}")
-            
-            # num_delta 约束：num_delta就是重复周期数
-            model.addConstr((num_delta[stage] + 1) * actual_num[stage] >= M, 
-                       name=f"num_delta_constraint_{stage}")
+        
+        # ========== 添加基本约束 ==========
+        # 1. 总层数约束
+        model.addConstr(gp.quicksum(x[i] for i in range(PP)) == K, name="TotalLayers")
+        
+        # 2. 内存约束 - 只对pipeline前半部分的stage应用（因为后半部分主要是backward）
+        if memory_aware:
+            for s in range(PP):
+                # 确保Memory_limit是列表，如果是单个值则复制
+                if isinstance(Memory_limit, (int, float)):
+                    mem_limit = Memory_limit
+                else:
+                    mem_limit = Memory_limit[s] if s < len(Memory_limit) else Memory_limit[0]
                 
-            # 使用z[stage]控制是否激活delta_time项
-            diff = model.addVar(lb=-BIG_M, ub=BIG_M, name=f"diff_{stage}")
-            model.addConstr(diff == optimal_num[stage] - actual_num[stage], name=f"diff_def_{stage}")
-            
-            # 如果optimal_num != actual_num，则z=1
-            model.addGenConstrIndicator(z[stage], True, diff >= 1e-5, name=f"z1_if_diff_{stage}")
-            model.addGenConstrIndicator(z[stage], True, diff <= -1e-5, name=f"z1_if_diff_neg_{stage}")
-            
-            # 如果optimal_num == actual_num，则z=0
-            model.addGenConstrIndicator(z[stage], False, diff == 0, name=f"z0_if_equal_{stage}")
-            
-            # activated_product: 只在z=1时才将product加入目标函数
-            activated_product = model.addVar(lb=0, name=f"activated_product_{stage}")
-            model.addConstr(activated_product == z[stage] * product)
-
-            # 将激活后的delta_time加入obj_2
-            model.addConstr(activated_product <= delta_time, name=f"delta_leq_dt_{stage}")
-            obj_2 += activated_product
-
-        model.addConstr(t >= obj_2, name=f"MaxConstraint_{stage}_2")
-
-    # ========== 通信时间约束，通用的通信总时间计算 ==========
-    obj_cm = gp.quicksum((Ft + Bt) * x[stage] for stage in range(PP))
-    obj_cm += (DP + 1) * CM + (M - 1) * DP * CM + 2 * Delay
-    obj_cm += delta_time
-    model.addConstr(t >= obj_cm, name="MaxConstraint_Communication")
-
-    # ========== 总模型层数约束 ==========
-    model.addConstr(gp.quicksum(x[i] for i in range(PP)) == K, name="SumConstraint")
-
-    # ========== 设置目标函数，最小化总时间==========
-    model.setObjective(t, GRB.MINIMIZE)
-
-    # ========== 求解设置 ==========
-    model.Params.DualReductions = 0
-    model.Params.NonConvex = 2
-    model.optimize()
-
-    # ========== 输出求解结果 ==========
-    print("Solver status code:", model.Status)
-    if model.status == GRB.INFEASIBLE:
-        # 若模型不可行，输出冲突约束
-        model.computeIIS()
-        model.write("model.ilp")
-        print("不可行模型已保存为 model.ilp")
+                # 内存约束：层数 * 平均激活microbatch数 <= 内存限制
+                # 这里使用简化的激活microbatch估算：M // PP
+                avg_active_microbatches = max(1, M // PP)
+                model.addConstr(x[s] * avg_active_microbatches <= mem_limit, 
+                               name=f"MemoryConstraint_{s}")
         
-        print("\n冲突约束列表:")
-        for c in model.getConstrs():
-            if c.IISConstr:
-                print(f"- {c.ConstrName}: {model.getRow(c)} {c.Sense} {c.RHS}")
-
-    x_vals = [x[i].X for i in range(PP)]
-    print("Optimal values of x:", x_vals)
-    t_val = t.X
-    print("Optimal value of t:", t_val)
-    num_vals = [actual_num[i].X for i in range(PP)]
-    print("actual values of num:", num_vals)
-    optimal_num_vals = [optimal_num[i].X for i in range(PP)]
-    print("optimal values of num:", optimal_num_vals)
-    print("delta_time:", delta_time.X)
-    num_delta_vals = [num_delta[i].X for i in range(PP)]
-    print("num_delta values:", num_delta_vals)
-    
-    return x_vals
+        # ========== 时间约束 - 管道并行执行时间模型 ==========
+        # 3. 对每个stage，计算其执行时间上界
+        for stage in range(PP):
+            # 计算该stage的总计算时间（前向+后向）
+            stage_compute_time = (Ft + Bt) * x[stage] * M
+            
+            # 添加通信时间（如果是跨DC的stage）
+            comm_time = 0
+            if comm_aware:
+                # 假设stage >= PP//2的为跨DC通信
+                if stage >= PP // 2:
+                    comm_time = CM * DP + Delay  # 通信延迟
+            
+            # stage总时间约束
+            total_stage_time = stage_compute_time + comm_time
+            model.addConstr(t >= total_stage_time, name=f"StageTime_{stage}")
+        
+        # 4. 全局通信时间约束（管道并行的关键路径）
+        if comm_aware:
+            # 管道并行的临界路径时间
+            critical_path_time = gp.quicksum((Ft + Bt) * x[s] for s in range(PP)) \
+                               + CM * (DP + M - 1) + Delay * 2  # 双向延迟
+            model.addConstr(t >= critical_path_time, name="CriticalPath")
+        
+        # ========== 设置目标函数 ==========
+        model.setObjective(t, GRB.MINIMIZE)
+        
+        # ========== 求解 ==========
+        model.optimize()
+        
+        # ========== 处理求解结果 ==========
+        if model.status == GRB.OPTIMAL:
+            x_vals = [int(x[i].X) for i in range(PP)]
+            t_val = t.X
+            print_rank_0(f"最优解找到: x={x_vals}, 总时间={t_val:.2f}ms")
+            return x_vals
+            
+        elif model.status == GRB.INFEASIBLE:
+            print_rank_0("模型不可行，尝试分析冲突约束...")
+            model.computeIIS()
+            print_rank_0("不可行约束:")
+            for c in model.getConstrs():
+                if c.IISConstr:
+                    print_rank_0(f"- {c.ConstrName}")
+            # 返回均匀分割作为fallback
+            return [K // PP + (1 if i < K % PP else 0) for i in range(PP)]
+            
+        elif model.status == GRB.TIME_LIMIT:
+            print_rank_0("求解超时，返回当前最优解")
+            try:
+                x_vals = [int(x[i].X) for i in range(PP)]
+                return x_vals
+            except:
+                # 返回均匀分割作为fallback
+                return [K // PP + (1 if i < K % PP else 0) for i in range(PP)]
+                
+        else:
+            print_rank_0(f"求解失败，状态码: {model.status}")
+            # 返回均匀分割作为fallback
+            return [K // PP + (1 if i < K % PP else 0) for i in range(PP)]
+            
+    except Exception as e:
+        print_rank_0(f"求解器异常: {e}")
+        # 返回均匀分割作为fallback
+        return [K // PP + (1 if i < K % PP else 0) for i in range(PP)]
 
 def generate_variants(K_list, A_list, limit):
     PP = len(K_list)

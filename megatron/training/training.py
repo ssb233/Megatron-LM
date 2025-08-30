@@ -2104,6 +2104,69 @@ def train(
     for model_module in model:
         model_module.train()
 
+    # 跨DC性能采样逻辑 - 在正式训练前采收性能数据
+    if args.jeeves_use_stage_division and args.use_cross_dc:
+        from megatron.core.pre_training_profiler import get_pre_training_profiler
+        pre_profiler = get_pre_training_profiler()
+        
+        if pre_profiler and not hasattr(args, '_profiling_completed'):
+            print_rank_0("进行跨DC优化的性能采样...")
+            
+            # 初始化性能采样器
+            pre_profiler.initialize(args)
+            
+            try:
+                # 运行性能采样
+                metrics = pre_profiler.run_profiling_iterations(
+                    model=model,
+                    data_iterator=train_data_iterator,
+                    forward_step_func=forward_step_func,
+                    config=config
+                )
+                
+                # 获取优化参数并更新求解器
+                optimized_params = pre_profiler.get_optimized_parameters_for_solver()
+                
+                # 重新计算非均匀切分方案
+                try:
+                    from tools.Jeeves.calculate_division import get_division_result
+                    from megatron.core.parallel_state import get_pipeline_model_parallel_world_size
+                    
+                    PP = args.pipeline_model_parallel_size
+                    M = args.micro_batch_size  
+                    K = args.num_layers
+                    
+                    # 使用采样得到的实际参数
+                    divide_result = get_division_result(
+                        PP=PP, M=M, DP=1,  # DP会在函数内重新计算
+                        CM=optimized_params['CM'],
+                        K=K,
+                        Delay=args.cross_dc_propagation_delay,
+                        Memory_limit=optimized_params['Memory_limit'],
+                        comm_aware=args.jeeves_comm_aware,
+                        memory_aware=args.jeeves_memory_aware,
+                        Ft=optimized_params['Ft'],
+                        Bt=optimized_params['Bt']
+                    )
+                    
+                    if divide_result:
+                        print_rank_0(f"基于性能采样的优化切分方案: {divide_result}")
+                        # 这里可以考虑重新配置模型，但由于模型已经初始化，
+                        # 我们只能记录这个结果供下次训练使用
+                        with open('optimized_pipeline_layout.txt', 'w') as f:
+                            f.write(str(divide_result))
+                        print_rank_0("优化结果已保存到 optimized_pipeline_layout.txt")
+                        
+                except Exception as e:
+                    print_rank_0(f"重新优化计算失败: {e}")
+                
+                # 标记为已完成，避免重复采样
+                args._profiling_completed = True
+                
+            except Exception as e:
+                print_rank_0(f"性能采样失败: {e}")
+                print_rank_0("继续正常训练流程...")
+
     # Tracking loss.
     total_loss_dict = {}
 

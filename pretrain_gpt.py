@@ -384,19 +384,61 @@ def train_valid_test_datasets_provider(train_val_test_num_samples):
 
 
 if __name__ == "__main__":
-
+    from megatron.core.pre_training_profiler import get_pre_training_profiler
+    from megatron.training import get_args
+    
     # Temporary for transition to core datasets
     train_valid_test_datasets_provider.is_distributed = True
 
     # Optionally enable inprocess restart on pretrain
     pretrain, store = inprocess_restart.maybe_wrap_for_inprocess_restart(pretrain)
-
-    pretrain(
-        train_valid_test_datasets_provider,
-        model_provider,
-        ModelType.encoder_or_decoder,
-        forward_step,
-        args_defaults={'tokenizer_type': 'GPT2BPETokenizer'},
-        extra_args_provider=add_modelopt_args if has_nvidia_modelopt else None,
-        store=store,
-    )
+    
+    # 检查是否需要运行性能采样来优化跨DC训练
+    args = get_args()
+    pre_profiler = get_pre_training_profiler()
+    
+    if pre_profiler.should_run_profiling(args):
+        # 需要先运行性能采样，然后重新优化配置
+        from megatron.training import print_rank_0
+        print_rank_0("检测到跨DC智能训练配置，将进行性能采样以优化训练参数...")
+        
+        # 这里我们创建一个包装函数来在模型初始化后进行性能采样
+        def wrapped_model_provider(*args_mp, **kwargs_mp):
+            model = model_provider(*args_mp, **kwargs_mp)
+            
+            # 初始化性能采样器
+            pre_profiler.initialize(args)
+            
+            return model
+        
+        def wrapped_forward_step_with_profiling(data_iterator, model, return_schedule_plan=False):
+            # 在性能采样阶段，收集详细的计算时间
+            if pre_profiler.is_profiling and pre_profiler.profiler:
+                profiler = pre_profiler.profiler
+                with profiler.profile_forward_microbatch(0):
+                    with profiler.profile_backward_microbatch(0):
+                        return forward_step(data_iterator, model, return_schedule_plan)
+            else:
+                return forward_step(data_iterator, model, return_schedule_plan)
+        
+        # 运行带有性能采样的预训练
+        pretrain(
+            train_valid_test_datasets_provider,
+            wrapped_model_provider,
+            ModelType.encoder_or_decoder,
+            wrapped_forward_step_with_profiling,
+            args_defaults={'tokenizer_type': 'GPT2BPETokenizer'},
+            extra_args_provider=add_modelopt_args if has_nvidia_modelopt else None,
+            store=store,
+        )
+    else:
+        # 正常训练流程
+        pretrain(
+            train_valid_test_datasets_provider,
+            model_provider,
+            ModelType.encoder_or_decoder,
+            forward_step,
+            args_defaults={'tokenizer_type': 'GPT2BPETokenizer'},
+            extra_args_provider=add_modelopt_args if has_nvidia_modelopt else None,
+            store=store,
+        )

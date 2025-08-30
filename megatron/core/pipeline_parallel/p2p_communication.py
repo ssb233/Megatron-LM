@@ -276,45 +276,104 @@ def _communicate(
 
     """
     # add cross dc delay
-    def get_is_cross_rank(src_rank=None, dst_rank=None, dc_size=1000):
+    def get_is_cross_dc_communication(src_rank, dst_rank, dc_size):
         """
+        判断两个rank之间是否为跨数据中心通信
+        
         Args:
-            src_rank (int, optional): src rank 
-            dst_rank (int, optional): dst rank
-            dc_size (int, optional): rank num of single DC
+            src_rank (int): 源rank
+            dst_rank (int): 目标rank  
+            dc_size (int): 单个数据中心的rank数量
+            
+        Returns:
+            bool: True如果是跨DC通信，False否则
         """
-        if src_rank is None:
-            src_rank = torch.distributed.get_rank()
-        if dst_rank is None:
-            dst_rank = get_pipeline_model_parallel_next_rank() #rank in World size
+        if src_rank is None or dst_rank is None:
+            return False
             
         src_dc = src_rank // dc_size
         dst_dc = dst_rank // dc_size
         
         return src_dc != dst_dc
-    def add_cross_dc_delay(tensor_send_prev, tensor_send_next, prev_rank, next_rank):
+    
+    def calculate_cross_dc_delay(tensor, propagation_delay_ms, transmission_delay_per_mb_ms):
+        """
+        根据tensor大小计算跨DC延迟
+        
+        Args:
+            tensor: 要传输的tensor
+            propagation_delay_ms: 传播延迟（毫秒）
+            transmission_delay_per_mb_ms: 每MB传输延迟（毫秒）
+            
+        Returns:
+            float: 总延迟（毫秒）
+        """
+        if tensor is None:
+            return 0.0
+            
+        # 计算tensor大小（MB）
+        tensor_size_bytes = tensor.numel() * tensor.element_size()
+        tensor_size_mb = tensor_size_bytes / (1024 * 1024)
+        
+        # 总延迟 = 传播延迟 + 传输延迟
+        transmission_delay = tensor_size_mb * transmission_delay_per_mb_ms
+        total_delay = propagation_delay_ms + transmission_delay
+        
+        return total_delay
+    
+    def apply_cross_dc_delay_if_needed(tensor_send_prev, tensor_send_next, prev_rank, next_rank):
+        """
+        根据通信情况应用跨DC延迟，修复原来所有通信都添加延迟的问题
+        """
         try:
-            with torch.profiler.record_function(f"manual_cross_dc_delay"):
-                from megatron.training.global_vars import get_args
-                args = get_args()
-                if getattr(args, 'use_cross_dc', False):
-                    delay_ms = getattr(args, 'cross_dc_delay', 1.0)
-                    dc_size = getattr(args, 'dc_size', 1000)
+            from megatron.training.global_vars import get_args
+            from megatron.core.performance_monitor import get_performance_profiler
+            
+            args = get_args()
+            if not getattr(args, 'use_cross_dc', False):
+                return
+                
+            # 获取跨DC配置参数
+            propagation_delay = getattr(args, 'cross_dc_propagation_delay', 50.0)  # 默认50ms
+            transmission_delay_per_mb = getattr(args, 'cross_dc_transmission_delay', 0.1)  # 默认0.1ms/MB
+            dc_size = getattr(args, 'dc_size', 8)
+            
+            current_rank = torch.distributed.get_rank()
+            profiler = get_performance_profiler()
+            
+            # 只对发送操作进行延迟模拟，避免重复
+            delay_applied = False
+            
+            # 检查发送到上一个阶段是否跨DC
+            if tensor_send_prev is not None and not delay_applied:
+                is_cross_dc = get_is_cross_dc_communication(current_rank, prev_rank, dc_size)
+                if is_cross_dc:
+                    total_delay_ms = calculate_cross_dc_delay(
+                        tensor_send_prev, propagation_delay, transmission_delay_per_mb
+                    )
                     
-                    # 检查发送到上一个阶段是否跨DC
-                    if tensor_send_prev is not None:
-                        is_cross_dc_prev = get_is_cross_rank(torch.distributed.get_rank(), prev_rank, dc_size)
-                        if is_cross_dc_prev:
-                            import time
-                            time.sleep(delay_ms / 1000.0)  
-                            
-                    # 检查发送到下一个阶段是否跨DC，两个时延确保只触发一个
-                    elif tensor_send_next is not None:
-                        is_cross_dc_next = get_is_cross_rank(torch.distributed.get_rank(), next_rank, dc_size)
-                        if is_cross_dc_next:
-                            import time
-                            time.sleep(delay_ms / 1000.0) 
-        except:
+                    with profiler.profile_communication(f"cross_dc_send_prev", 
+                                                       tensor_send_prev.numel() * tensor_send_prev.element_size() / (1024*1024)):
+                        import time
+                        time.sleep(total_delay_ms / 1000.0)
+                    delay_applied = True
+                        
+            # 检查发送到下一个阶段是否跨DC（如果还没有应用延迟）
+            if tensor_send_next is not None and not delay_applied:
+                is_cross_dc = get_is_cross_dc_communication(current_rank, next_rank, dc_size)
+                if is_cross_dc:
+                    total_delay_ms = calculate_cross_dc_delay(
+                        tensor_send_next, propagation_delay, transmission_delay_per_mb
+                    )
+                    
+                    with profiler.profile_communication(f"cross_dc_send_next", 
+                                                       tensor_send_next.numel() * tensor_send_next.element_size() / (1024*1024)):
+                        import time
+                        time.sleep(total_delay_ms / 1000.0)
+                    delay_applied = True
+                    
+        except Exception as e:
+            # 如果出现异常，不影响正常训练流程
             pass
     
     # Create placeholder tensors for receive in forward and backward directions
@@ -399,10 +458,10 @@ def _communicate(
 
     """
     add cross dc delay
-    bug :
-        1. all comm delay will be added (in face, there should be no delay in recv comm)
+    修复了原来所有通信都添加延迟的问题，现在只对跨DC的发送操作添加延迟
+    并且根据tensor大小计算传输延迟
     """
-    add_cross_dc_delay(tensor_send_prev, tensor_send_next, prev_rank, next_rank)
+    apply_cross_dc_delay_if_needed(tensor_send_prev, tensor_send_next, prev_rank, next_rank)
     
     p2p_reqs = p2p_func(
         tensor_send_prev=tensor_send_prev,
