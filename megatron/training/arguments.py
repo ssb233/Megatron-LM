@@ -154,6 +154,20 @@ def load_retro_args(args):
 
 def validate_args(args, defaults={}):
 
+    if args.custom_comm_dependency is not None and args.custom_pipeline_schedule is None:
+        raise ValueError(
+            "--custom-comm-dependency requires --custom-pipeline-schedule"
+        )
+    if args.custom_pipeline_schedule is not None:
+        if args.static_schedule is not None or args.dynamic_schedule is not None:
+            raise ValueError(
+                "--custom-pipeline-schedule cannot be combined with "
+                "--static_schedule or --dynamic_schedule"
+            )
+        # Supplying a custom order selects the CrossPipe scheduler; callers do
+        # not need to repeat --enable_cdcpp_scheduler.
+        args.enable_cdcpp_scheduler = True
+
     # Temporary
     assert args.non_persistent_ckpt_type in ['global', None], \
         'Currently only global checkpoints are supported'
@@ -1505,6 +1519,26 @@ def _add_distributed_args(parser):
     
     group.add_argument('--enable_cdcpp_scheduler', action='store_true', default=False,)
     group.add_argument('--static_schedule', type=str, default=None, choices=['1F1B', 'GPipe','Interleaved1F1B','ZBH1','ZBV',])
+    group.add_argument(
+        '--custom-pipeline-schedule',
+        type=str,
+        default=None,
+        help='Path to a Magellan replay.order.json file. Enables the custom '
+        'one-chunk static pipeline schedule.',
+    )
+    group.add_argument(
+        '--custom-comm-dependency',
+        type=str,
+        default=None,
+        help='Optional path to a Magellan notification dependency JSON file. '
+        'Requires --custom-pipeline-schedule.',
+    )
+    group.add_argument(
+        '--custom-schedule-trace-dir',
+        type=str,
+        default=None,
+        help='Optional output directory for per-rank custom-schedule JSONL traces.',
+    )
     group.add_argument('--enable_prefetch_opt', action='store_true', default=False, help='prefetch optimization for static schedule. Dynamic schedule has this opt by default')
     group.add_argument('--dynamic_schedule', type=str, default=None, choices=['wave', 'ud', 'subud'])
     group.add_argument('--dynamic_extra_mem_factor', type=float, default=0.0, help='Need profiling. Limit the memory to (1 + factor) * pp_size * chunks * M_F')

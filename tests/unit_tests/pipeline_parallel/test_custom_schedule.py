@@ -1,4 +1,5 @@
 import copy
+import argparse
 import json
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from megatron.core.pipeline_parallel.cdc_scheduler.pp_generator.pipeline import 
 from megatron.core.pipeline_parallel.cdc_scheduler.pp_generator.pipeline_config import (
     SystemConfig,
 )
+from megatron.training.arguments import _add_distributed_args
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -205,3 +207,21 @@ def test_custom_pipeline_rejects_mismatched_system_config():
 
     with pytest.raises(ValueError, match="PP size"):
         CustomOneChunkPipeline(config, spec)
+
+
+def test_custom_schedule_command_line_arguments_are_independent():
+    parser = _add_distributed_args(argparse.ArgumentParser())
+    args = parser.parse_args(
+        [
+            "--custom-pipeline-schedule",
+            "replay.order.json",
+            "--custom-comm-dependency",
+            "notification_deps.json",
+            "--custom-schedule-trace-dir",
+            "trace",
+        ]
+    )
+
+    assert args.custom_pipeline_schedule == "replay.order.json"
+    assert args.custom_comm_dependency == "notification_deps.json"
+    assert args.custom_schedule_trace_dir == "trace"

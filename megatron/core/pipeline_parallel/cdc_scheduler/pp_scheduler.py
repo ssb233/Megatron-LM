@@ -41,7 +41,12 @@ from megatron.core.utils import get_model_config, get_model_type
 from megatron.training import get_args
 from megatron.core.pipeline_parallel.cdc_scheduler.pp_generator import (
     Pipeline,
+    get_custom_static_schedule,
     get_default_static_schedule,
+)
+from megatron.core.pipeline_parallel.cdc_scheduler.custom_schedule import (
+    CustomScheduleSpec,
+    load_custom_schedule,
 )
 from megatron.core.pipeline_parallel.cdc_scheduler.execution_planner import (
     CommEvent,
@@ -593,8 +598,32 @@ class CDCPPScheduler:
         
         exp_dir = args.tensorboard_dir
 
+        self.custom_schedule_spec: Optional[CustomScheduleSpec] = None
+
         # static schedule
-        if args.static_schedule is not None:
+        if args.custom_comm_dependency is not None and args.custom_pipeline_schedule is None:
+            raise ValueError(
+                "--custom-comm-dependency requires --custom-pipeline-schedule"
+            )
+        if args.custom_pipeline_schedule is not None:
+            if args.static_schedule is not None or args.dynamic_schedule is not None:
+                raise ValueError(
+                    "--custom-pipeline-schedule cannot be combined with "
+                    "--static_schedule or --dynamic_schedule"
+                )
+            self.use_static_schedule = True
+            self.custom_schedule_spec = load_custom_schedule(
+                args.custom_pipeline_schedule,
+                args.custom_comm_dependency,
+                pp_size=pp_size,
+                num_microbatches=num_microbatch,
+            )
+            self._verify_custom_schedule_digest(self.custom_schedule_spec)
+            self.pp_schedule = get_custom_static_schedule(
+                self.custom_schedule_spec
+            )
+            self.pp_schedule_generator = None
+        elif args.static_schedule is not None:
             assert args.dynamic_schedule is None
             self.use_static_schedule = True
             self.pp_schedule = get_default_static_schedule(
@@ -814,9 +843,18 @@ class CDCPPScheduler:
                 num_chunks=self.pp_schedule.sys_config.num_chunks,
                 two_dc=False,                
             )
-            pipeline = get_default_static_schedule(
-                self.args.static_schedule, pp_size, self.num_microbatch, not_to_solve_deps=True
-            )
+            if self.custom_schedule_spec is not None:
+                pipeline = get_custom_static_schedule(
+                    self.custom_schedule_spec,
+                    not_to_solve_deps=True,
+                )
+            else:
+                pipeline = get_default_static_schedule(
+                    self.args.static_schedule,
+                    pp_size,
+                    self.num_microbatch,
+                    not_to_solve_deps=True,
+                )
             pipeline.sys_config = sys_cfg
             pipeline.solve_dependencies()
             estimated_runtime = pipeline.get_schedule_time(device_wise=True)          
@@ -878,6 +916,23 @@ class CDCPPScheduler:
         self.no_sync_func = None
         self.no_sync_context = None
 
+    @staticmethod
+    def _verify_custom_schedule_digest(
+        custom_schedule_spec: CustomScheduleSpec,
+    ) -> None:
+        """Fail before execution if ranks loaded different normalized schedules."""
+
+        if not dist.is_available() or not dist.is_initialized():
+            return
+        local_digest = custom_schedule_spec.canonical_sha256
+        all_digests = [None] * dist.get_world_size()
+        dist.all_gather_object(all_digests, local_digest)
+        if any(digest != local_digest for digest in all_digests):
+            raise RuntimeError(
+                "custom pipeline schedule differs across distributed ranks: "
+                f"{all_digests}"
+            )
+
     def validate_args(self):
         args = self.args
         # validate args
@@ -891,8 +946,32 @@ class CDCPPScheduler:
         assert not args.defer_embedding_wgrad_compute
         assert not args.variable_seq_lengths
 
-        if self.use_static_schedule:
-            pass
+        if self.custom_schedule_spec is not None:
+            assert args.pipeline_model_parallel_size == 4, (
+                "custom communication dependencies currently support PP=4 only"
+            )
+            assert args.tensor_model_parallel_size == 1, (
+                "custom communication dependencies currently require TP=1"
+            )
+            assert parallel_state.get_data_parallel_world_size() == 1, (
+                "custom communication dependencies currently require DP=1"
+            )
+            assert args.virtual_pipeline_model_parallel_size in (None, 1), (
+                "custom pipeline schedule requires exactly one model chunk"
+            )
+            assert args.recompute_granularity is None, (
+                "custom pipeline schedule must run with activation recomputation off"
+            )
+            assert args.recompute_method is None, (
+                "custom pipeline schedule must run with activation recomputation off"
+            )
+            assert args.num_dc == 1, (
+                "custom schedule validation run must not inject cross-DC delay"
+            )
+            assert all(
+                latency == 0 and bandwidth == 0
+                for latency, bandwidth in args.cdc_latency_bandwidth_delay_as_F_stage
+            ), "custom schedule validation run must not inject communication delay"
 
         assert (
             not args.align_grad_reduce
@@ -912,10 +991,11 @@ class CDCPPScheduler:
             not args.defer_embedding_wgrad_compute
         ), "defer_embedding_wgrad_compute is not supported"
 
-        assert (
-            args.virtual_pipeline_model_parallel_size
-            == self.pp_schedule.sys_config.num_chunks
-        ), "For compatibility, virtual_pipeline_model_parallel_size is equivalent to number of chunks"
+        if self.custom_schedule_spec is None:
+            assert (
+                args.virtual_pipeline_model_parallel_size
+                == self.pp_schedule.sys_config.num_chunks
+            ), "For compatibility, virtual_pipeline_model_parallel_size is equivalent to number of chunks"
 
         if self.wgrad_split:
             assert (
