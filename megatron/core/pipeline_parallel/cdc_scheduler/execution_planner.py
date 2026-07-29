@@ -10,6 +10,7 @@ from megatron.core.pipeline_parallel.cdc_scheduler.pp_generator.pipeline import 
     get_default_static_schedule,
 )
 from megatron.core.pipeline_parallel.cdc_scheduler.pp_generator.subpipeline import SubPipeline
+from megatron.core.pipeline_parallel.cdc_scheduler.custom_schedule import CommOpId
 
 
 @dataclass
@@ -91,6 +92,175 @@ class ExecutionPlanner:
         self.execution_plan: List[List[ComputeTask]] = [
             [] for _ in range(len(pipeline.device_scheduled_tasks))
         ]
+
+    @staticmethod
+    def _comm_op(
+        task_type: str,
+        mb_id: int,
+        src_dev_id: int,
+        dst_dev_id: int,
+    ) -> CommOpId:
+        return CommOpId(task_type, mb_id, src_dev_id, dst_dev_id)
+
+    def _insert_custom_send_events(
+        self,
+        dev_id: int,
+        send_pairs: List[Tuple[TaskNode, TaskNode, CommEventType]],
+        tasknode_to_computetask: Dict[TaskNode, ComputeTask],
+    ) -> None:
+        """Place sends in the custom per-channel/local-dependency order."""
+
+        custom_spec = self.pipeline.custom_schedule_spec
+        device_tasks = self.pipeline.device_scheduled_tasks[dev_id]
+        task_indices = {task: index for index, task in enumerate(device_tasks)}
+        event_by_op = {}
+        producer_by_op = {}
+
+        for destination_task, producer_task, event_type in send_pairs:
+            operation = self._comm_op(
+                producer_task.task_type,
+                producer_task.microbatch_id,
+                producer_task.device_id,
+                destination_task.device_id,
+            )
+            event_by_op[operation] = CommEvent(
+                type=event_type,
+                src_dev_id=producer_task.device_id,
+                dst_dev_id=destination_task.device_id,
+                task_type=producer_task.task_type,
+                chunk_id=tasknode_to_computetask[
+                    producer_task
+                ].task_desc.chunk_id,
+                mb_id=producer_task.microbatch_id,
+            )
+            producer_by_op[operation] = producer_task
+
+        expected = {
+            operation
+            for channel_order in custom_spec.comm_order.values()
+            for operation in channel_order
+            if operation.src_stage == dev_id
+        }
+        actual = set(event_by_op)
+        if actual != expected:
+            missing = sorted(operation.name for operation in expected - actual)
+            extra = sorted(operation.name for operation in actual - expected)
+            raise ValueError(
+                f"custom send event mismatch on stage {dev_id}: "
+                f"missing={missing}, extra={extra}"
+            )
+
+        successors = {operation: set() for operation in actual}
+        indegree = {operation: 0 for operation in actual}
+        for target in actual:
+            for predecessor in custom_spec.predecessors_for(target):
+                if predecessor.src_stage != dev_id:
+                    continue
+                if predecessor not in actual:
+                    raise ValueError(
+                        f"missing local predecessor {predecessor.name} for "
+                        f"{target.name}"
+                    )
+                if target not in successors[predecessor]:
+                    successors[predecessor].add(target)
+                    indegree[target] += 1
+
+        ready = sorted(
+            (operation for operation, degree in indegree.items() if degree == 0),
+            key=lambda operation: (
+                task_indices[producer_by_op[operation]],
+                operation.name,
+            ),
+        )
+        ordered = []
+        while ready:
+            operation = ready.pop(0)
+            ordered.append(operation)
+            for successor in sorted(
+                successors[operation], key=lambda item: item.name
+            ):
+                indegree[successor] -= 1
+                if indegree[successor] == 0:
+                    ready.append(successor)
+                    ready.sort(
+                        key=lambda item: (
+                            task_indices[producer_by_op[item]],
+                            item.name,
+                        )
+                    )
+        if len(ordered) != len(actual):
+            raise ValueError(
+                f"custom send dependencies contain a cycle on stage {dev_id}"
+            )
+
+        emission_index = {}
+        for operation in ordered:
+            index = task_indices[producer_by_op[operation]]
+            for predecessor in custom_spec.predecessors_for(operation):
+                if predecessor.src_stage == dev_id:
+                    index = max(index, emission_index[predecessor])
+            emission_index[operation] = index
+
+            if operation.direction == "F":
+                backward_index = task_indices[
+                    next(
+                        task
+                        for task in device_tasks
+                        if task.task_type == "B"
+                        and task.microbatch_id == operation.microbatch
+                    )
+                ]
+                if index >= backward_index:
+                    raise ValueError(
+                        f"custom communication order delays {operation.name} "
+                        "until its forward tensor has entered backward"
+                    )
+
+            event = event_by_op[operation]
+            self.execution_plan[dev_id][index].post_events.append(event)
+            tasknode_to_computetask[producer_by_op[operation]].send_event = event
+
+    def _insert_custom_recv_events(
+        self,
+        dev_id: int,
+        recv_pairs: List[Tuple[TaskNode, TaskNode, CommEventType]],
+        tasknode_to_computetask: Dict[TaskNode, ComputeTask],
+    ) -> None:
+        """Prepost receives in exact custom channel order without Gloo gating."""
+
+        if not recv_pairs:
+            return
+        custom_spec = self.pipeline.custom_schedule_spec
+        ordered = []
+        for sender_task, consumer_task, event_type in recv_pairs:
+            operation = self._comm_op(
+                consumer_task.task_type,
+                consumer_task.microbatch_id,
+                sender_task.device_id,
+                consumer_task.device_id,
+            )
+            ordered.append((operation, sender_task, consumer_task, event_type))
+
+        ordered.sort(
+            key=lambda item: (
+                item[0].channel,
+                custom_spec.comm_position(item[0]),
+            )
+        )
+        first_compute = self.execution_plan[dev_id][0]
+        for operation, sender_task, consumer_task, event_type in ordered:
+            event = CommEvent(
+                type=event_type,
+                src_dev_id=sender_task.device_id,
+                dst_dev_id=consumer_task.device_id,
+                task_type=consumer_task.task_type,
+                chunk_id=tasknode_to_computetask[
+                    consumer_task
+                ].task_desc.chunk_id,
+                mb_id=consumer_task.microbatch_id,
+            )
+            first_compute.pre_events.append(event)
+            tasknode_to_computetask[consumer_task].recv_event = event
 
     def generate_execution_plan(self):
         device_task_lists = self.pipeline.device_scheduled_tasks
@@ -207,89 +377,142 @@ class ExecutionPlanner:
                     )
                 )
 
-            # insert sends
-            for send_task, cur_task in send_prev_dev_tasks:
-                compute_task = tasknode_to_computetask[cur_task]
-                assert send_task.device_id == prev_rank
-                assert send_task.task_type == cur_task.task_type
-                assert send_task.microbatch_id == cur_task.microbatch_id
-
-                compute_task.post_events.append(
-                    CommEvent(
-                        type=CommEventType.POST_SEND_PREV,
-                        src_dev_id=dev_id,
-                        dst_dev_id=prev_rank,
-                        chunk_id=tasknode_to_computetask[cur_task].task_desc.chunk_id,
-                        task_type=cur_task.task_type,
-                        mb_id=cur_task.microbatch_id,
-                    )
+            custom_spec = getattr(self.pipeline, "custom_schedule_spec", None)
+            if custom_spec is not None:
+                self._insert_custom_send_events(
+                    dev_id,
+                    [
+                        (
+                            destination_task,
+                            producer_task,
+                            CommEventType.POST_SEND_PREV,
+                        )
+                        for destination_task, producer_task in send_prev_dev_tasks
+                    ]
+                    + [
+                        (
+                            destination_task,
+                            producer_task,
+                            CommEventType.POST_SEND_NEXT,
+                        )
+                        for destination_task, producer_task in send_next_dev_tasks
+                    ],
+                    tasknode_to_computetask,
                 )
-                compute_task.send_event = compute_task.post_events[-1]
+            else:
+                # insert sends
+                for send_task, cur_task in send_prev_dev_tasks:
+                    compute_task = tasknode_to_computetask[cur_task]
+                    assert send_task.device_id == prev_rank
+                    assert send_task.task_type == cur_task.task_type
+                    assert send_task.microbatch_id == cur_task.microbatch_id
 
-            for send_task, cur_task in send_next_dev_tasks:
-                compute_task = tasknode_to_computetask[cur_task]
-                assert send_task.device_id == next_rank
-                assert send_task.task_type == cur_task.task_type
-                assert send_task.microbatch_id == cur_task.microbatch_id
-
-                compute_task.post_events.append(
-                    CommEvent(
-                        type=CommEventType.POST_SEND_NEXT,
-                        src_dev_id=dev_id,
-                        dst_dev_id=next_rank,
-                        task_type=cur_task.task_type,
-                        chunk_id=tasknode_to_computetask[cur_task].task_desc.chunk_id,
-                        mb_id=cur_task.microbatch_id,
+                    compute_task.post_events.append(
+                        CommEvent(
+                            type=CommEventType.POST_SEND_PREV,
+                            src_dev_id=dev_id,
+                            dst_dev_id=prev_rank,
+                            chunk_id=tasknode_to_computetask[
+                                cur_task
+                            ].task_desc.chunk_id,
+                            task_type=cur_task.task_type,
+                            mb_id=cur_task.microbatch_id,
+                        )
                     )
-                )
-                compute_task.send_event = compute_task.post_events[-1]
+                    compute_task.send_event = compute_task.post_events[-1]
+
+                for send_task, cur_task in send_next_dev_tasks:
+                    compute_task = tasknode_to_computetask[cur_task]
+                    assert send_task.device_id == next_rank
+                    assert send_task.task_type == cur_task.task_type
+                    assert send_task.microbatch_id == cur_task.microbatch_id
+
+                    compute_task.post_events.append(
+                        CommEvent(
+                            type=CommEventType.POST_SEND_NEXT,
+                            src_dev_id=dev_id,
+                            dst_dev_id=next_rank,
+                            task_type=cur_task.task_type,
+                            chunk_id=tasknode_to_computetask[
+                                cur_task
+                            ].task_desc.chunk_id,
+                            mb_id=cur_task.microbatch_id,
+                        )
+                    )
+                    compute_task.send_event = compute_task.post_events[-1]
 
             # insert recvs(sorted) before the start of corresponding send
-            for recv_task, cur_task in recv_prev_dev_tasks:
-                task_to_insert_post = cur_task
-                while (
-                    task_to_insert_post.start_time > recv_task.completion_time
-                    and task_to_insert_post.prev_device_task is not None
-                ):
-                    # ensure the post recv is inserted before the send if possible
-                    task_to_insert_post = task_to_insert_post.prev_device_task
-                compute_task = tasknode_to_computetask[task_to_insert_post]
-                compute_task.pre_events.append(
-                    CommEvent(
-                        type=CommEventType.POST_RECV_PREV,
-                        src_dev_id=prev_rank,
-                        dst_dev_id=dev_id,
-                        task_type=cur_task.task_type,
-                        chunk_id=tasknode_to_computetask[cur_task].task_desc.chunk_id,
-                        mb_id=cur_task.microbatch_id,
-                    )
+            if custom_spec is not None:
+                self._insert_custom_recv_events(
+                    dev_id,
+                    [
+                        (
+                            sender_task,
+                            consumer_task,
+                            CommEventType.POST_RECV_PREV,
+                        )
+                        for sender_task, consumer_task in recv_prev_dev_tasks
+                    ]
+                    + [
+                        (
+                            sender_task,
+                            consumer_task,
+                            CommEventType.POST_RECV_NEXT,
+                        )
+                        for sender_task, consumer_task in recv_next_dev_tasks
+                    ],
+                    tasknode_to_computetask,
                 )
-                tasknode_to_computetask[cur_task].recv_event = compute_task.pre_events[
-                    -1
-                ]
+            else:
+                for recv_task, cur_task in recv_prev_dev_tasks:
+                    task_to_insert_post = cur_task
+                    while (
+                        task_to_insert_post.start_time > recv_task.completion_time
+                        and task_to_insert_post.prev_device_task is not None
+                    ):
+                        # ensure the post recv is inserted before the send if possible
+                        task_to_insert_post = task_to_insert_post.prev_device_task
+                    compute_task = tasknode_to_computetask[task_to_insert_post]
+                    compute_task.pre_events.append(
+                        CommEvent(
+                            type=CommEventType.POST_RECV_PREV,
+                            src_dev_id=prev_rank,
+                            dst_dev_id=dev_id,
+                            task_type=cur_task.task_type,
+                            chunk_id=tasknode_to_computetask[
+                                cur_task
+                            ].task_desc.chunk_id,
+                            mb_id=cur_task.microbatch_id,
+                        )
+                    )
+                    tasknode_to_computetask[
+                        cur_task
+                    ].recv_event = compute_task.pre_events[-1]
 
-            for recv_task, cur_task in recv_next_dev_tasks:
-                task_to_insert_post = cur_task
-                while (
-                    task_to_insert_post.start_time > recv_task.completion_time
-                    and task_to_insert_post.prev_device_task is not None
-                ):
-                    # ensure the post recv is inserted before the send if possible
-                    task_to_insert_post = task_to_insert_post.prev_device_task
-                compute_task = tasknode_to_computetask[task_to_insert_post]
-                compute_task.pre_events.append(
-                    CommEvent(
-                        type=CommEventType.POST_RECV_NEXT,
-                        src_dev_id=next_rank,
-                        dst_dev_id=dev_id,
-                        task_type=cur_task.task_type,
-                        chunk_id=tasknode_to_computetask[cur_task].task_desc.chunk_id,
-                        mb_id=cur_task.microbatch_id,
+                for recv_task, cur_task in recv_next_dev_tasks:
+                    task_to_insert_post = cur_task
+                    while (
+                        task_to_insert_post.start_time > recv_task.completion_time
+                        and task_to_insert_post.prev_device_task is not None
+                    ):
+                        # ensure the post recv is inserted before the send if possible
+                        task_to_insert_post = task_to_insert_post.prev_device_task
+                    compute_task = tasknode_to_computetask[task_to_insert_post]
+                    compute_task.pre_events.append(
+                        CommEvent(
+                            type=CommEventType.POST_RECV_NEXT,
+                            src_dev_id=next_rank,
+                            dst_dev_id=dev_id,
+                            task_type=cur_task.task_type,
+                            chunk_id=tasknode_to_computetask[
+                                cur_task
+                            ].task_desc.chunk_id,
+                            mb_id=cur_task.microbatch_id,
+                        )
                     )
-                )
-                tasknode_to_computetask[cur_task].recv_event = compute_task.pre_events[
-                    -1
-                ]
+                    tasknode_to_computetask[
+                        cur_task
+                    ].recv_event = compute_task.pre_events[-1]
 
             # insert wait recvs
             for recv_task, cur_task in recv_prev_dev_tasks:

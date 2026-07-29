@@ -16,6 +16,11 @@ from megatron.core.pipeline_parallel.cdc_scheduler.pp_generator.pipeline import 
 from megatron.core.pipeline_parallel.cdc_scheduler.pp_generator.pipeline_config import (
     SystemConfig,
 )
+from megatron.core.pipeline_parallel.cdc_scheduler.execution_planner import (
+    CommEvent,
+    CommEventType,
+    ExecutionPlanner,
+)
 from megatron.training.arguments import _add_distributed_args
 
 
@@ -225,3 +230,68 @@ def test_custom_schedule_command_line_arguments_are_independent():
     assert args.custom_pipeline_schedule == "replay.order.json"
     assert args.custom_comm_dependency == "notification_deps.json"
     assert args.custom_schedule_trace_dir == "trace"
+
+
+def _events_for_stage(planner, stage, event_types):
+    return [
+        event
+        for compute_task in planner.execution_plan[stage]
+        for event in compute_task.pre_events + compute_task.post_events
+        if isinstance(event, CommEvent) and event.type in event_types
+    ]
+
+
+def test_execution_planner_uses_non_1f1b_communication_order(tmp_path):
+    schedule = _load_schedule_json()
+    schedule["comm"]["F_0_1"].reverse()
+    path = _write_json(tmp_path, "reversed-forward-channel.json", schedule)
+    spec = load_custom_schedule(
+        str(path),
+        None,
+        pp_size=4,
+        num_microbatches=4,
+    )
+    planner = ExecutionPlanner(get_custom_static_schedule(spec))
+    planner.generate_execution_plan()
+
+    sends = _events_for_stage(
+        planner, 0, {CommEventType.POST_SEND_NEXT}
+    )
+    assert [event.mb_id for event in sends] == [3, 2, 1, 0]
+    assert all(event.task_type == "F" for event in sends)
+
+    recv_posts = [
+        event
+        for event in planner.execution_plan[1][0].pre_events
+        if isinstance(event, CommEvent)
+        and event.type == CommEventType.POST_RECV_PREV
+        and event.task_type == "F"
+    ]
+    assert [event.mb_id for event in recv_posts] == [3, 2, 1, 0]
+
+
+def test_execution_planner_places_local_cross_channel_dependency_in_order():
+    spec = load_custom_schedule(
+        str(SCHEDULE),
+        str(DEPENDENCIES),
+        pp_size=4,
+        num_microbatches=4,
+    )
+    planner = ExecutionPlanner(get_custom_static_schedule(spec))
+    planner.generate_execution_plan()
+
+    sends = _events_for_stage(
+        planner,
+        2,
+        {CommEventType.POST_SEND_NEXT, CommEventType.POST_SEND_PREV},
+    )
+    names = [
+        CommOpId(
+            event.task_type,
+            event.mb_id,
+            event.src_dev_id,
+            event.dst_dev_id,
+        ).name
+        for event in sends
+    ]
+    assert names.index("Comm_F_3_2_3") < names.index("Comm_B_0_2_1")
