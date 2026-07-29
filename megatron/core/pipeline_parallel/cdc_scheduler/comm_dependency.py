@@ -30,12 +30,14 @@ class CommDependencyController:
         pipeline_stage: int,
         control_group,
         pipeline_global_ranks: Sequence[int],
+        timeout_seconds: float = 600.0,
         trace=None,
     ) -> None:
         self.spec = custom_schedule_spec
         self.pipeline_stage = pipeline_stage
         self.control_group = control_group
         self.pipeline_global_ranks = tuple(pipeline_global_ranks)
+        self.timeout_seconds = timeout_seconds
         self.trace = trace
 
         if len(self.pipeline_global_ranks) != self.spec.pp_size:
@@ -90,7 +92,39 @@ class CommDependencyController:
         dependency: CommDependency,
         forward_only: bool,
     ) -> bool:
-        return not forward_only or dependency.target.direction == "F"
+        return not forward_only or (
+            dependency.trigger.direction == "F"
+            and dependency.target.direction == "F"
+        )
+
+    def _wait_for_signal(
+        self,
+        work: dist.Work,
+        dependency: CommDependency,
+    ) -> None:
+        if not hasattr(work, "is_completed"):
+            work.wait()
+            return
+
+        deadline = time.monotonic() + self.timeout_seconds
+        while not work.is_completed():
+            with self._lock:
+                worker_errors = tuple(self._thread_errors)
+            if worker_errors:
+                raise RuntimeError(
+                    f"rank/stage {self.pipeline_stage} failed while waiting for "
+                    f"dependency {dependency.dependency_id} "
+                    f"{dependency.trigger.name} -> {dependency.target.name}; "
+                    f"signal worker errors: {worker_errors!r}"
+                )
+            if time.monotonic() >= deadline:
+                raise RuntimeError(
+                    f"rank/stage {self.pipeline_stage} timed out waiting for "
+                    f"dependency {dependency.dependency_id} "
+                    f"{dependency.trigger.name} -> {dependency.target.name}"
+                )
+            time.sleep(0.0001)
+        work.wait()
 
     def before_send(self, operation: CommOpId, *, forward_only: bool) -> None:
         """Wait for completion prerequisites before submitting ``operation``."""
@@ -101,6 +135,8 @@ class CommDependencyController:
             )
 
         for predecessor in self.spec.predecessors_for(operation):
+            if forward_only and predecessor.direction != "F":
+                continue
             dependency = self._dependency_by_pair.get(
                 (predecessor, operation)
             )
@@ -121,7 +157,11 @@ class CommDependencyController:
                 trigger=predecessor.name,
                 target=operation.name,
             )
-            self._wait_for_work_completion(work, predecessor)
+            self._wait_for_work_completion(
+                work,
+                predecessor,
+                self.timeout_seconds,
+            )
             self._record(
                 "comm_complete",
                 operation=predecessor.name,
@@ -151,12 +191,13 @@ class CommDependencyController:
                 target=dependency.target.name,
                 peer_rank=source_rank,
             )
-            dist.recv(
+            signal_work = dist.irecv(
                 payload,
                 src=source_rank,
                 group=self.control_group,
                 tag=self._signal_tag(dependency),
             )
+            self._wait_for_signal(signal_work, dependency)
             received_id = int(payload.item())
             if received_id != dependency.dependency_id:
                 raise RuntimeError(
@@ -229,7 +270,11 @@ class CommDependencyController:
     ) -> None:
         try:
             self._record("comm_complete_wait_start", operation=operation.name)
-            self._wait_for_work_completion(work, operation)
+            self._wait_for_work_completion(
+                work,
+                operation,
+                self.timeout_seconds,
+            )
             self._record(
                 "comm_complete",
                 operation=operation.name,
@@ -290,9 +335,14 @@ class CommDependencyController:
     def _signal_tag(dependency: CommDependency) -> int:
         return _SIGNAL_TAG_BASE + dependency.dependency_id
 
-    def finish_iteration(self, timeout_seconds: float = 600.0) -> None:
+    def finish_iteration(self, timeout_seconds: Optional[float] = None) -> None:
         """Join signal workers and reset operation state for the next iteration."""
 
+        timeout_seconds = (
+            self.timeout_seconds
+            if timeout_seconds is None
+            else timeout_seconds
+        )
         for thread in self._threads:
             thread.join(timeout=timeout_seconds)
             if thread.is_alive():

@@ -48,6 +48,7 @@ COMMON_CDC_ARGS="\
   --no-align-grad-reduce \
   --no-align-param-gather \
   --num_dc 1 \
+  --cdc_latency_bandwidth_delay_as_F_stage 0,0 \
   --cdc_exp_logging \
   --cdc_exp_test_start_iter 3 \
   --cdc_exp_per_cfg_test_iters 10"
@@ -62,9 +63,11 @@ Do not pass any recomputation option:
 --recompute-num-layers
 ```
 
-Do not pass a nonzero `--cdc_latency_bandwidth_delay_as_F_stage`. The custom
-schedule path automatically enables the CrossPipe scheduler. Run A still
-needs `--enable_cdcpp_scheduler` because it has no custom path.
+The explicit `0,0` pair is required by CrossPipe's experiment logger and does
+not inject delay. Do not pass a nonzero
+`--cdc_latency_bandwidth_delay_as_F_stage`. The custom schedule path
+automatically enables the CrossPipe scheduler. Run A still needs
+`--enable_cdcpp_scheduler` because it has no custom path.
 
 `<layers-per-physical-stage>` must make Megatron create exactly one virtual
 chunk. With CrossPipe's `head_tail_as_one_layer` layout, use the same value as
@@ -158,6 +161,8 @@ Comm_F_3_2_3 comm_complete
 ```text
 completion_to_target_submit_us
 signal_send_to_recv_us
+gate_wait_us
+signal_recv_to_target_submit_us
 ```
 
 These timestamps use `time.perf_counter_ns()`. They are comparable across

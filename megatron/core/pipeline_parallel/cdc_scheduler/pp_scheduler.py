@@ -783,6 +783,7 @@ class CDCPPScheduler:
                 pipeline_global_ranks=(
                     parallel_state.get_pipeline_control_global_ranks()
                 ),
+                timeout_seconds=args.distributed_timeout_minutes * 60,
                 trace=self.custom_schedule_trace,
             )
 
@@ -811,6 +812,10 @@ class CDCPPScheduler:
                 f.write(self.pp_execution_planner.print_execution_plan())
 
     def update_schedule_with_latency_bandwidth(self):
+        # The external JSON is the authoritative static schedule. Profiling may
+        # collect timings, but must never replace its TaskNodes or event plan.
+        if self.custom_schedule_spec is not None:
+            return
         if self.exp_manager.profile_result is None:
             return
         latency_sec, bandwidth_sec = (
@@ -1120,6 +1125,8 @@ class CDCPPScheduler:
 
     @staticmethod
     def _custom_comm_operation(event: CommEvent) -> CommOpId:
+        if event.op_id is not None:
+            return event.op_id
         return CommOpId(
             event.task_type,
             event.mb_id,
@@ -1204,15 +1211,6 @@ class CDCPPScheduler:
                 )
             else:
                 dependency_ids = []
-            self._trace_record(
-                "target_submit",
-                operation=operation.name,
-                direction=operation.direction,
-                microbatch=operation.microbatch,
-                src_stage=operation.src_stage,
-                dst_stage=operation.dst_stage,
-                dependency_ids=dependency_ids,
-            )
             work = self.isend(
                 send_buffer,
                 next_rank,
@@ -1222,6 +1220,15 @@ class CDCPPScheduler:
             self.send_next_reqs[
                 (event.mb_id, event.chunk_id, event.task_type)
             ] = work
+            self._trace_record(
+                "target_submit",
+                operation=operation.name,
+                direction=operation.direction,
+                microbatch=operation.microbatch,
+                src_stage=operation.src_stage,
+                dst_stage=operation.dst_stage,
+                dependency_ids=dependency_ids,
+            )
             self._trace_record(
                 "comm_post",
                 operation=operation.name,
@@ -1261,15 +1268,6 @@ class CDCPPScheduler:
                 )
             else:
                 dependency_ids = []
-            self._trace_record(
-                "target_submit",
-                operation=operation.name,
-                direction=operation.direction,
-                microbatch=operation.microbatch,
-                src_stage=operation.src_stage,
-                dst_stage=operation.dst_stage,
-                dependency_ids=dependency_ids,
-            )
             work = self.isend(
                 send_buffer,
                 prev_rank,
@@ -1279,6 +1277,15 @@ class CDCPPScheduler:
             self.send_prev_reqs[
                 (event.mb_id, event.chunk_id, event.task_type)
             ] = work
+            self._trace_record(
+                "target_submit",
+                operation=operation.name,
+                direction=operation.direction,
+                microbatch=operation.microbatch,
+                src_stage=operation.src_stage,
+                dst_stage=operation.dst_stage,
+                dependency_ids=dependency_ids,
+            )
             self._trace_record(
                 "comm_post",
                 operation=operation.name,

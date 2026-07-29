@@ -39,6 +39,16 @@ class CommEvent(TaskEvent):
     chunk_id: int
     mb_id: int
     prev_task_chunk_id: int = -1  # only used for local copy
+    op_id: Optional[CommOpId] = None
+
+    def __post_init__(self):
+        if self.op_id is None and self.type != CommEventType.LOCAL_COPY:
+            self.op_id = CommOpId(
+                self.task_type,
+                self.mb_id,
+                self.src_dev_id,
+                self.dst_dev_id,
+            )
 
     def __hash__(self) -> int:
         return hash(
@@ -50,6 +60,7 @@ class CommEvent(TaskEvent):
                 self.chunk_id,
                 self.mb_id,
                 self.prev_task_chunk_id,
+                self.op_id,
             )
         )
     

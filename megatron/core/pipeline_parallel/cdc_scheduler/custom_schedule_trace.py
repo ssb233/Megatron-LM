@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import atexit
 import json
 import os
 import threading
@@ -32,6 +33,7 @@ class CustomScheduleTrace:
             "w",
             encoding="utf-8",
         )
+        atexit.register(self.close)
         self.record(
             "trace_metadata",
             schedule_digest=schedule_digest,

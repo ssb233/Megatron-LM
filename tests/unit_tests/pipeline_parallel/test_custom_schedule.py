@@ -363,12 +363,13 @@ def test_remote_dependency_sends_and_receives_cpu_signal(monkeypatch):
     assert destination == 3
     assert group == "gloo"
 
-    def fake_recv(payload, src, group, tag):
+    def fake_irecv(payload, src, group, tag):
         assert src == 1
         assert group == "gloo"
         payload.fill_(dependency_id)
+        return _FakeWork()
 
-    monkeypatch.setattr(comm_dependency.dist, "recv", fake_recv)
+    monkeypatch.setattr(comm_dependency.dist, "irecv", fake_irecv)
     target = CommDependencyController(
         spec,
         pipeline_stage=3,

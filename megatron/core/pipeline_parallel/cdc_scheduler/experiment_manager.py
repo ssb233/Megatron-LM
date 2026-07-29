@@ -79,6 +79,8 @@ class ExperimentManager:
             args.exit_interval = self.exp_logging_end_iter
         else:
             args.exit_interval = self.cdc_exp_test_start_iter
+            self.cdc_exp_override_iter_map = {}
+            self.exp_logging_end_iter = self.cdc_exp_test_start_iter
             
         self.profile_result = None
     

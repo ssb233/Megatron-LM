@@ -171,6 +171,8 @@ def validate_args(args, defaults={}):
         # Supplying a custom order selects the CrossPipe scheduler; callers do
         # not need to repeat --enable_cdcpp_scheduler.
         args.enable_cdcpp_scheduler = True
+        if not args.cdc_latency_bandwidth_delay_as_F_stage:
+            args.cdc_latency_bandwidth_delay_as_F_stage = [(0.0, 0.0)]
 
     # Temporary
     assert args.non_persistent_ckpt_type in ['global', None], \
@@ -310,6 +312,45 @@ def validate_args(args, defaults={}):
             print('WARNING: Setting args.overlap_p2p_comm and args.align_param_gather to False '
                   'since non-interleaved schedule does not support overlapping p2p communication '
                   'and aligned param AG')
+
+    if args.custom_pipeline_schedule is not None:
+        assert args.world_size == 4, (
+            "custom pipeline schedule currently requires WORLD_SIZE=4"
+        )
+        assert args.pipeline_model_parallel_size == 4, (
+            "custom pipeline schedule currently requires PP=4"
+        )
+        assert args.tensor_model_parallel_size == 1, (
+            "custom pipeline schedule currently requires TP=1"
+        )
+        assert args.data_parallel_size == 1, (
+            "custom pipeline schedule currently requires DP=1"
+        )
+        assert args.virtual_pipeline_model_parallel_size == 1, (
+            "custom pipeline schedule requires exactly one model chunk"
+        )
+        assert args.num_subparts == 1, (
+            "custom pipeline schedule requires --num_subparts 1"
+        )
+        assert args.rampup_batch_size is None, (
+            "custom pipeline schedule requires a fixed microbatch count"
+        )
+        assert args.recompute_granularity is None, (
+            "custom pipeline schedule requires recomputation to be disabled"
+        )
+        assert args.recompute_method is None, (
+            "custom pipeline schedule requires recomputation to be disabled"
+        )
+        assert args.num_dc == 1, (
+            "custom pipeline schedule validation does not inject cross-DC delay"
+        )
+        assert all(
+            latency == 0 and bandwidth == 0
+            for latency, bandwidth in args.cdc_latency_bandwidth_delay_as_F_stage
+        ), "custom pipeline schedule requires a zero communication-delay config"
+        assert not args.standalone_embedding_stage, (
+            "custom pipeline schedule does not support a standalone embedding stage"
+        )
 
     if args.overlap_param_gather:
         assert args.use_distributed_optimizer, \

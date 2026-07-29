@@ -132,6 +132,22 @@ def convert(events):
                         "args": args,
                     }
                 )
+        elif name in ("signal_send_start", "signal_recv"):
+            dependency_id = event["dependency_id"]
+            flow_id = f"{event['iteration']}:{dependency_id}"
+            chrome.append(
+                {
+                    "name": f"dependency_{dependency_id}",
+                    "cat": "dependency",
+                    "ph": "t",
+                    "bp": "e",
+                    "id": flow_id,
+                    "pid": rank,
+                    "tid": LANES["gloo"],
+                    "ts": timestamp_us,
+                    "args": args,
+                }
+            )
         elif name == "target_submit" and "dependency_ids" in event:
             for dependency_id in event["dependency_ids"]:
                 flow_id = f"{event['iteration']}:{dependency_id}"
@@ -272,6 +288,7 @@ def summarize_dependencies(events):
     target_submit = {}
     signal_send = {}
     signal_recv = {}
+    signal_wait = {}
     for event in events:
         iteration = event["iteration"]
         if event["event"] == "comm_complete":
@@ -288,9 +305,15 @@ def summarize_dependencies(events):
             signal_recv[(iteration, event["dependency_id"])] = event[
                 "timestamp_ns"
             ]
+        elif event["event"] == "signal_wait_start":
+            signal_wait[(iteration, event["dependency_id"])] = event[
+                "timestamp_ns"
+            ]
 
     control_latencies = []
     gloo_latencies = []
+    gate_wait_latencies = []
+    submit_delay_latencies = []
     samples = []
     for key in sorted(set(completion) & set(target_submit)):
         control_us = (target_submit[key] - completion[key]) / 1000
@@ -304,12 +327,24 @@ def summarize_dependencies(events):
             gloo_us = (signal_recv[key] - signal_send[key]) / 1000
             sample["signal_send_to_recv_us"] = gloo_us
             gloo_latencies.append(gloo_us)
+        if key in signal_wait and key in signal_recv:
+            gate_wait_us = (signal_recv[key] - signal_wait[key]) / 1000
+            sample["gate_wait_us"] = gate_wait_us
+            gate_wait_latencies.append(gate_wait_us)
+        if key in signal_recv:
+            submit_delay_us = (target_submit[key] - signal_recv[key]) / 1000
+            sample["signal_recv_to_target_submit_us"] = submit_delay_us
+            submit_delay_latencies.append(submit_delay_us)
         samples.append(sample)
 
     return {
         "samples": samples,
         "completion_to_target_submit": _aggregate(control_latencies),
         "signal_send_to_recv": _aggregate(gloo_latencies),
+        "gate_wait": _aggregate(gate_wait_latencies),
+        "signal_recv_to_target_submit": _aggregate(
+            submit_delay_latencies
+        ),
         "clock": "time.perf_counter_ns; comparable across processes on one node",
     }
 
