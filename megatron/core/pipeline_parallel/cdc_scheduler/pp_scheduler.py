@@ -45,8 +45,12 @@ from megatron.core.pipeline_parallel.cdc_scheduler.pp_generator import (
     get_default_static_schedule,
 )
 from megatron.core.pipeline_parallel.cdc_scheduler.custom_schedule import (
+    CommOpId,
     CustomScheduleSpec,
     load_custom_schedule,
+)
+from megatron.core.pipeline_parallel.cdc_scheduler.comm_dependency import (
+    CommDependencyController,
 )
 from megatron.core.pipeline_parallel.cdc_scheduler.execution_planner import (
     CommEvent,
@@ -755,6 +759,17 @@ class CDCPPScheduler:
         self.send_prev_reqs: Dict[Tuple, dist.Work] = {}
         self.recv_prev_reqs: Dict[Tuple, dist.Work] = {}
 
+        self.comm_dependency_controller = None
+        if self.custom_schedule_spec is not None:
+            self.comm_dependency_controller = CommDependencyController(
+                self.custom_schedule_spec,
+                pipeline_stage=self.pp_rank,
+                control_group=parallel_state.get_pipeline_control_group(),
+                pipeline_global_ranks=(
+                    parallel_state.get_pipeline_control_global_ranks()
+                ),
+            )
+
         # cached tensors (mb, chunk)
         self.input_tensors: Dict[Tuple, torch.Tensor] = {}
         self.output_tensors: Dict[Tuple, torch.Tensor] = {}
@@ -901,6 +916,9 @@ class CDCPPScheduler:
 
     def clean_up(self):
         # get ready for the next iteration
+        if self.comm_dependency_controller is not None:
+            self.comm_dependency_controller.finish_iteration()
+
         self.send_next_reqs.clear()
         self.recv_next_reqs.clear()
         self.send_prev_reqs.clear()
@@ -925,8 +943,13 @@ class CDCPPScheduler:
         if not dist.is_available() or not dist.is_initialized():
             return
         local_digest = custom_schedule_spec.canonical_sha256
-        all_digests = [None] * dist.get_world_size()
-        dist.all_gather_object(all_digests, local_digest)
+        control_group = parallel_state.get_pipeline_control_group()
+        all_digests = [None] * dist.get_world_size(group=control_group)
+        dist.all_gather_object(
+            all_digests,
+            local_digest,
+            group=control_group,
+        )
         if any(digest != local_digest for digest in all_digests):
             raise RuntimeError(
                 "custom pipeline schedule differs across distributed ranks: "
@@ -1065,7 +1088,23 @@ class CDCPPScheduler:
                 and compute_task.task_desc.type == "B"
             )
 
-    def schedule_comm_event(self, event: CommEvent, config, tensor_shape):
+    @staticmethod
+    def _custom_comm_operation(event: CommEvent) -> CommOpId:
+        return CommOpId(
+            event.task_type,
+            event.mb_id,
+            event.src_dev_id,
+            event.dst_dev_id,
+        )
+
+    def schedule_comm_event(
+        self,
+        event: CommEvent,
+        config,
+        tensor_shape,
+        *,
+        forward_only: bool,
+    ):
         send_next_group = parallel_state.get_pipeline_extra_send_next_group()
         recv_next_group = parallel_state.get_pipeline_extra_recv_next_group()
         send_prev_group = parallel_state.get_pipeline_extra_send_prev_group()
@@ -1113,14 +1152,27 @@ class CDCPPScheduler:
                         ].detach()
                     )
         elif event.type == CommEventType.POST_SEND_NEXT:
-            self.send_next_reqs[(event.mb_id, event.chunk_id, event.task_type)] = (
-                self.isend(
-                    send_buffer,
-                    next_rank,
-                    group=send_next_group,
-                    bandwidth_delay_ms=self.injected_bandwidth_delay[1] * 1000 if self.cdc_send_next else 0,
+            operation = self._custom_comm_operation(event)
+            if self.comm_dependency_controller is not None:
+                self.comm_dependency_controller.before_send(
+                    operation,
+                    forward_only=forward_only,
                 )
+            work = self.isend(
+                send_buffer,
+                next_rank,
+                group=send_next_group,
+                bandwidth_delay_ms=self.injected_bandwidth_delay[1] * 1000 if self.cdc_send_next else 0,
             )
+            self.send_next_reqs[
+                (event.mb_id, event.chunk_id, event.task_type)
+            ] = work
+            if self.comm_dependency_controller is not None:
+                self.comm_dependency_controller.register_send(
+                    operation,
+                    work,
+                    forward_only=forward_only,
+                )
         elif event.type == CommEventType.POST_RECV_NEXT:
             self.recv_next_reqs[(event.mb_id, event.chunk_id, event.task_type)] = (
                 self.irecv(
@@ -1131,14 +1183,27 @@ class CDCPPScheduler:
                 )
             )
         elif event.type == CommEventType.POST_SEND_PREV:
-            self.send_prev_reqs[(event.mb_id, event.chunk_id, event.task_type)] = (
-                self.isend(
-                    send_buffer,
-                    prev_rank,
-                    group=send_prev_group,
-                    bandwidth_delay_ms=self.injected_bandwidth_delay[1] * 1000 if self.cdc_send_prev else 0,
+            operation = self._custom_comm_operation(event)
+            if self.comm_dependency_controller is not None:
+                self.comm_dependency_controller.before_send(
+                    operation,
+                    forward_only=forward_only,
                 )
+            work = self.isend(
+                send_buffer,
+                prev_rank,
+                group=send_prev_group,
+                bandwidth_delay_ms=self.injected_bandwidth_delay[1] * 1000 if self.cdc_send_prev else 0,
             )
+            self.send_prev_reqs[
+                (event.mb_id, event.chunk_id, event.task_type)
+            ] = work
+            if self.comm_dependency_controller is not None:
+                self.comm_dependency_controller.register_send(
+                    operation,
+                    work,
+                    forward_only=forward_only,
+                )
         elif event.type == CommEventType.POST_RECV_PREV:
             self.recv_prev_reqs[(event.mb_id, event.chunk_id, event.task_type)] = (
                 self.irecv(
@@ -1196,7 +1261,12 @@ class CDCPPScheduler:
                 task_type = event.task_type
                 if mb_id >= num_microbatches or task_type != "F":
                     return
-            self.schedule_comm_event(event, config, tensor_shape)
+            self.schedule_comm_event(
+                event,
+                config,
+                tensor_shape,
+                forward_only=forward_only,
+            )
         else:
             raise NotImplementedError()
 

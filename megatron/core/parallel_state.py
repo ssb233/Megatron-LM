@@ -20,6 +20,8 @@ _TENSOR_MODEL_PARALLEL_GROUP = None
 _PIPELINE_MODEL_PARALLEL_GROUP = None
 # cdcpp scheduler need 4 extra pp groups
 _PIPELINE_EXTRA_GROUP = None
+# CPU/Gloo control plane for custom pipeline communication dependencies.
+_PIPELINE_CONTROL_GROUP = None
 # Model parallel group (both intra- and pipeline) that the current rank belongs to.
 _MODEL_PARALLEL_GROUP = None
 # Model parallel group (both intra-, pipeline, and expert) that the current rank belongs to.
@@ -69,6 +71,7 @@ _POSITION_EMBEDDING_GLOBAL_RANKS = None
 # rank when broadcasting from the first or last pipeline stage.
 _PIPELINE_GLOBAL_RANKS = None
 _PIPELINE_EXTRA_GLOBAL_RANKS = None
+_PIPELINE_CONTROL_GLOBAL_RANKS = None
 
 # A list of global ranks for each data parallel group to ease calculation of the source
 # rank when broadcasting weights from src to all other data parallel ranks
@@ -757,6 +760,9 @@ def initialize_model_parallel(
     global _PIPELINE_EXTRA_GROUP
     global _PIPELINE_EXTRA_GLOBAL_RANKS
     assert _PIPELINE_EXTRA_GROUP is None, 'extra pipeline group is already initialized'
+    global _PIPELINE_CONTROL_GROUP
+    global _PIPELINE_CONTROL_GLOBAL_RANKS
+    assert _PIPELINE_CONTROL_GROUP is None, 'pipeline control group is already initialized'
     for ranks in generator_wrapper('pp'):
         group = torch.distributed.new_group(
             ranks, timeout=timeout, pg_options=get_nccl_options('pp', nccl_comm_cfgs)
@@ -774,6 +780,16 @@ def initialize_model_parallel(
         
         from megatron.training.global_vars import get_args
         args = get_args()
+        if getattr(args, 'custom_pipeline_schedule', None) is not None:
+            control_group = torch.distributed.new_group(
+                ranks,
+                timeout=timeout,
+                backend='gloo',
+            )
+            if rank in ranks:
+                _PIPELINE_CONTROL_GROUP = control_group
+                _PIPELINE_CONTROL_GLOBAL_RANKS = ranks
+
         if args.enable_cdcpp_scheduler:
             for _ in range(4):
                 extra_group = torch.distributed.new_group(
@@ -961,6 +977,35 @@ def get_pipeline_extra_groups():
         _PIPELINE_EXTRA_GROUP is not None
     ), 'pipeline extra groups are not initialized'
     return _PIPELINE_EXTRA_GROUP
+
+
+def get_pipeline_control_group():
+    """Return the Gloo control group for custom pipeline dependencies."""
+
+    assert (
+        _PIPELINE_CONTROL_GROUP is not None
+    ), 'pipeline control group is not initialized'
+    return _PIPELINE_CONTROL_GROUP
+
+
+def get_pipeline_control_global_ranks():
+    """Return global ranks ordered by pipeline stage for the control group."""
+
+    assert (
+        _PIPELINE_CONTROL_GLOBAL_RANKS is not None
+    ), 'pipeline control ranks are not initialized'
+    return _PIPELINE_CONTROL_GLOBAL_RANKS
+
+
+def get_pipeline_control_global_rank(pipeline_stage: int):
+    ranks = get_pipeline_control_global_ranks()
+    if pipeline_stage < 0 or pipeline_stage >= len(ranks):
+        raise ValueError(
+            f"pipeline stage {pipeline_stage} is outside control group "
+            f"of size {len(ranks)}"
+        )
+    return ranks[pipeline_stage]
+
 
 def get_pipeline_extra_send_next_group():
     extra_groups = get_pipeline_extra_groups()
@@ -1704,6 +1749,14 @@ def destroy_model_parallel():
     
     global _PIPELINE_EXTRA_GROUP
     _PIPELINE_EXTRA_GROUP = None
+
+    global _PIPELINE_CONTROL_GROUP
+    if _PIPELINE_CONTROL_GROUP is not None:
+        torch.distributed.destroy_process_group(_PIPELINE_CONTROL_GROUP)
+    _PIPELINE_CONTROL_GROUP = None
+
+    global _PIPELINE_CONTROL_GLOBAL_RANKS
+    _PIPELINE_CONTROL_GLOBAL_RANKS = None
 
     global _DATA_PARALLEL_GROUP
     _DATA_PARALLEL_GROUP = None

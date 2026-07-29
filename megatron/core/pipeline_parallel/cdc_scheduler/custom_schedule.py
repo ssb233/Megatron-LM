@@ -449,6 +449,111 @@ def _validate_acyclic(
     for trigger, target, _reason, _directed_link in dependencies:
         _add_edge(adjacency, indegree, trigger.name, target.name)
 
+    # The target sender performs dependency waits on its CPU scheduler thread.
+    # Model that blocking edge to the first compute that follows the target's
+    # eventual send-event placement, so a cross-rank control-plane deadlock is
+    # rejected before distributed execution.
+    compute_indices = {
+        operation: index
+        for stage_order in compute_order
+        for index, operation in enumerate(stage_order)
+    }
+    channel_predecessors = defaultdict(list)
+    for channel_order in comm_order.values():
+        for previous, current in zip(channel_order[:-1], channel_order[1:]):
+            channel_predecessors[current].append(previous)
+
+    extra_local_predecessors = defaultdict(list)
+    extra_remote_predecessors = defaultdict(list)
+    for trigger, target, _reason, _directed_link in dependencies:
+        if trigger.src_stage == target.src_stage:
+            extra_local_predecessors[target].append(trigger)
+        else:
+            extra_remote_predecessors[target].append(trigger)
+
+    emission_indices = {}
+    for stage in range(pp_size):
+        stage_operations = [
+            operation
+            for channel_order in comm_order.values()
+            for operation in channel_order
+            if operation.src_stage == stage
+        ]
+        successors = {operation: set() for operation in stage_operations}
+        local_indegree = {operation: 0 for operation in stage_operations}
+        for target in stage_operations:
+            for predecessor in (
+                channel_predecessors[target]
+                + extra_local_predecessors[target]
+            ):
+                if target not in successors[predecessor]:
+                    successors[predecessor].add(target)
+                    local_indegree[target] += 1
+
+        ready_operations = sorted(
+            (
+                operation
+                for operation, degree in local_indegree.items()
+                if degree == 0
+            ),
+            key=lambda operation: operation.name,
+        )
+        ordered_operations = []
+        while ready_operations:
+            operation = ready_operations.pop(0)
+            ordered_operations.append(operation)
+            for successor in sorted(
+                successors[operation],
+                key=lambda item: item.name,
+            ):
+                local_indegree[successor] -= 1
+                if local_indegree[successor] == 0:
+                    ready_operations.append(successor)
+                    ready_operations.sort(key=lambda item: item.name)
+        if len(ordered_operations) != len(stage_operations):
+            raise ValueError(
+                f"custom communication dependencies contain a local cycle "
+                f"on stage {stage}"
+            )
+
+        for operation in ordered_operations:
+            producer = ComputeOpId(
+                operation.direction,
+                operation.microbatch,
+                operation.src_stage,
+            )
+            emission_index = compute_indices[producer]
+            for predecessor in (
+                channel_predecessors[operation]
+                + extra_local_predecessors[operation]
+            ):
+                emission_index = max(
+                    emission_index,
+                    emission_indices[predecessor],
+                )
+            emission_indices[operation] = emission_index
+
+    for target in comm_ops:
+        blocking_predecessors = (
+            channel_predecessors[target]
+            + extra_local_predecessors[target]
+            + extra_remote_predecessors[target]
+        )
+        if not blocking_predecessors:
+            continue
+        stage_order = compute_order[target.src_stage]
+        next_index = emission_indices[target] + 1
+        if next_index >= len(stage_order):
+            continue
+        next_compute = stage_order[next_index]
+        for predecessor in blocking_predecessors:
+            _add_edge(
+                adjacency,
+                indegree,
+                predecessor.name,
+                next_compute.name,
+            )
+
     ready = deque(sorted(name for name, degree in indegree.items() if degree == 0))
     visited = []
     while ready:

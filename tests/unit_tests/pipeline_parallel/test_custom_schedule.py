@@ -21,6 +21,10 @@ from megatron.core.pipeline_parallel.cdc_scheduler.execution_planner import (
     CommEventType,
     ExecutionPlanner,
 )
+from megatron.core.pipeline_parallel.cdc_scheduler.comm_dependency import (
+    CommDependencyController,
+)
+from megatron.core.pipeline_parallel.cdc_scheduler import comm_dependency
 from megatron.training.arguments import _add_distributed_args
 
 
@@ -295,3 +299,108 @@ def test_execution_planner_places_local_cross_channel_dependency_in_order():
         for event in sends
     ]
     assert names.index("Comm_F_3_2_3") < names.index("Comm_B_0_2_1")
+
+
+class _FakeWork:
+    def __init__(self):
+        self.wait_count = 0
+
+    def wait(self):
+        self.wait_count += 1
+
+
+def test_local_dependency_waits_for_predecessor_work():
+    spec = load_custom_schedule(
+        str(SCHEDULE),
+        str(DEPENDENCIES),
+        pp_size=4,
+        num_microbatches=4,
+    )
+    controller = CommDependencyController(
+        spec,
+        pipeline_stage=2,
+        control_group=object(),
+        pipeline_global_ranks=[0, 1, 2, 3],
+    )
+    trigger = CommOpId("F", 3, 2, 3)
+    target = CommOpId("B", 0, 2, 1)
+    work = _FakeWork()
+
+    controller.register_send(trigger, work, forward_only=False)
+    controller.before_send(target, forward_only=False)
+
+    assert work.wait_count == 1
+
+
+def test_remote_dependency_sends_and_receives_cpu_signal(monkeypatch):
+    spec = load_custom_schedule(
+        str(SCHEDULE),
+        str(DEPENDENCIES),
+        pp_size=4,
+        num_microbatches=4,
+    )
+    sent = []
+
+    def fake_send(payload, dst, group, tag):
+        sent.append((int(payload.item()), dst, group, tag))
+
+    monkeypatch.setattr(comm_dependency.dist, "send", fake_send)
+    source = CommDependencyController(
+        spec,
+        pipeline_stage=1,
+        control_group="gloo",
+        pipeline_global_ranks=[0, 1, 2, 3],
+    )
+    trigger = CommOpId("F", 3, 1, 2)
+    work = _FakeWork()
+    source.register_send(trigger, work, forward_only=False)
+    source.finish_iteration()
+
+    assert work.wait_count == 1
+    assert len(sent) == 1
+    dependency_id, destination, group, tag = sent[0]
+    assert destination == 3
+    assert group == "gloo"
+
+    def fake_recv(payload, src, group, tag):
+        assert src == 1
+        assert group == "gloo"
+        payload.fill_(dependency_id)
+
+    monkeypatch.setattr(comm_dependency.dist, "recv", fake_recv)
+    target = CommDependencyController(
+        spec,
+        pipeline_stage=3,
+        control_group="gloo",
+        pipeline_global_ranks=[0, 1, 2, 3],
+    )
+    target.before_send(
+        CommOpId("B", 0, 3, 2),
+        forward_only=False,
+    )
+
+
+def test_forward_only_skips_signal_whose_target_is_backward(monkeypatch):
+    spec = load_custom_schedule(
+        str(SCHEDULE),
+        str(DEPENDENCIES),
+        pp_size=4,
+        num_microbatches=4,
+    )
+    monkeypatch.setattr(
+        comm_dependency.dist,
+        "send",
+        lambda *args, **kwargs: pytest.fail("unexpected signal"),
+    )
+    source = CommDependencyController(
+        spec,
+        pipeline_stage=1,
+        control_group="gloo",
+        pipeline_global_ranks=[0, 1, 2, 3],
+    )
+    source.register_send(
+        CommOpId("F", 3, 1, 2),
+        _FakeWork(),
+        forward_only=True,
+    )
+    source.finish_iteration()
