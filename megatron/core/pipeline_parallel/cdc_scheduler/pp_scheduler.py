@@ -52,6 +52,9 @@ from megatron.core.pipeline_parallel.cdc_scheduler.custom_schedule import (
 from megatron.core.pipeline_parallel.cdc_scheduler.comm_dependency import (
     CommDependencyController,
 )
+from megatron.core.pipeline_parallel.cdc_scheduler.custom_schedule_trace import (
+    CustomScheduleTrace,
+)
 from megatron.core.pipeline_parallel.cdc_scheduler.execution_planner import (
     CommEvent,
     CommEventType,
@@ -759,6 +762,18 @@ class CDCPPScheduler:
         self.send_prev_reqs: Dict[Tuple, dist.Work] = {}
         self.recv_prev_reqs: Dict[Tuple, dist.Work] = {}
 
+        self.custom_schedule_trace = None
+        if (
+            self.custom_schedule_spec is not None
+            and args.custom_schedule_trace_dir is not None
+        ):
+            self.custom_schedule_trace = CustomScheduleTrace(
+                args.custom_schedule_trace_dir,
+                global_rank=dist.get_rank(),
+                pipeline_rank=self.pp_rank,
+                schedule_digest=self.custom_schedule_spec.canonical_sha256,
+            )
+
         self.comm_dependency_controller = None
         if self.custom_schedule_spec is not None:
             self.comm_dependency_controller = CommDependencyController(
@@ -768,6 +783,7 @@ class CDCPPScheduler:
                 pipeline_global_ranks=(
                     parallel_state.get_pipeline_control_global_ranks()
                 ),
+                trace=self.custom_schedule_trace,
             )
 
         # cached tensors (mb, chunk)
@@ -1097,6 +1113,10 @@ class CDCPPScheduler:
             event.dst_dev_id,
         )
 
+    def _trace_record(self, event: str, **fields) -> None:
+        if self.custom_schedule_trace is not None:
+            self.custom_schedule_trace.record(event, **fields)
+
     def schedule_comm_event(
         self,
         event: CommEvent,
@@ -1114,6 +1134,11 @@ class CDCPPScheduler:
         prev_rank = parallel_state.get_pipeline_model_parallel_prev_rank()
 
         assert event.task_type in ["F", "B"]
+        operation = (
+            None
+            if event.type == CommEventType.LOCAL_COPY
+            else self._custom_comm_operation(event)
+        )
 
         if event.task_type == "F":
             send_buffer = get_or_set_pp_io_tensor(
@@ -1152,12 +1177,28 @@ class CDCPPScheduler:
                         ].detach()
                     )
         elif event.type == CommEventType.POST_SEND_NEXT:
-            operation = self._custom_comm_operation(event)
             if self.comm_dependency_controller is not None:
                 self.comm_dependency_controller.before_send(
                     operation,
                     forward_only=forward_only,
                 )
+                dependency_ids = (
+                    self.comm_dependency_controller.dependency_ids_for_target(
+                        operation,
+                        forward_only=forward_only,
+                    )
+                )
+            else:
+                dependency_ids = []
+            self._trace_record(
+                "target_submit",
+                operation=operation.name,
+                direction=operation.direction,
+                microbatch=operation.microbatch,
+                src_stage=operation.src_stage,
+                dst_stage=operation.dst_stage,
+                dependency_ids=dependency_ids,
+            )
             work = self.isend(
                 send_buffer,
                 next_rank,
@@ -1167,6 +1208,11 @@ class CDCPPScheduler:
             self.send_next_reqs[
                 (event.mb_id, event.chunk_id, event.task_type)
             ] = work
+            self._trace_record(
+                "comm_post",
+                operation=operation.name,
+                comm_kind="send",
+            )
             if self.comm_dependency_controller is not None:
                 self.comm_dependency_controller.register_send(
                     operation,
@@ -1182,13 +1228,34 @@ class CDCPPScheduler:
                     bandwidth_delay_ms=self.injected_bandwidth_delay[1] * 1000 if self.cdc_recv_next else 0,
                 )
             )
+            self._trace_record(
+                "comm_post",
+                operation=operation.name,
+                comm_kind="recv",
+            )
         elif event.type == CommEventType.POST_SEND_PREV:
-            operation = self._custom_comm_operation(event)
             if self.comm_dependency_controller is not None:
                 self.comm_dependency_controller.before_send(
                     operation,
                     forward_only=forward_only,
                 )
+                dependency_ids = (
+                    self.comm_dependency_controller.dependency_ids_for_target(
+                        operation,
+                        forward_only=forward_only,
+                    )
+                )
+            else:
+                dependency_ids = []
+            self._trace_record(
+                "target_submit",
+                operation=operation.name,
+                direction=operation.direction,
+                microbatch=operation.microbatch,
+                src_stage=operation.src_stage,
+                dst_stage=operation.dst_stage,
+                dependency_ids=dependency_ids,
+            )
             work = self.isend(
                 send_buffer,
                 prev_rank,
@@ -1198,6 +1265,11 @@ class CDCPPScheduler:
             self.send_prev_reqs[
                 (event.mb_id, event.chunk_id, event.task_type)
             ] = work
+            self._trace_record(
+                "comm_post",
+                operation=operation.name,
+                comm_kind="send",
+            )
             if self.comm_dependency_controller is not None:
                 self.comm_dependency_controller.register_send(
                     operation,
@@ -1213,10 +1285,25 @@ class CDCPPScheduler:
                     bandwidth_delay_ms=self.injected_bandwidth_delay[1] * 1000 if self.cdc_recv_prev else 0,
                 )
             )
+            self._trace_record(
+                "comm_post",
+                operation=operation.name,
+                comm_kind="recv",
+            )
         elif event.type == CommEventType.WAIT_SEND_NEXT:
             handle = self.send_next_reqs[(event.mb_id, event.chunk_id, event.task_type)]
             assert handle is not None
+            self._trace_record(
+                "comm_wait_start",
+                operation=operation.name,
+                comm_kind="send",
+            )
             handle.wait()
+            self._trace_record(
+                "comm_wait_end",
+                operation=operation.name,
+                comm_kind="send",
+            )
         elif event.type == CommEventType.WAIT_RECV_NEXT:
             handle = self.recv_next_reqs[(event.mb_id, event.chunk_id, event.task_type)]
             assert handle is not None
@@ -1224,6 +1311,11 @@ class CDCPPScheduler:
             assert hasattr(
                 handle, "wait_with_lat_delay_in_ms"
             ), "Latency injection requires custom pytorch build for wait_with_lat_delay_in_ms"
+            self._trace_record(
+                "comm_wait_start",
+                operation=operation.name,
+                comm_kind="recv",
+            )
             if self.cdc_recv_next:
                 # if only bandwidth delay injection, still need this api to inject spin kernel on default stream.
                 handle.wait_with_lat_delay_in_ms(
@@ -1231,10 +1323,25 @@ class CDCPPScheduler:
                 )
             else:
                 handle.wait()
+            self._trace_record(
+                "comm_wait_end",
+                operation=operation.name,
+                comm_kind="recv",
+            )
         elif event.type == CommEventType.WAIT_SEND_PREV:
             handle = self.send_prev_reqs[(event.mb_id, event.chunk_id, event.task_type)]
             assert handle is not None
+            self._trace_record(
+                "comm_wait_start",
+                operation=operation.name,
+                comm_kind="send",
+            )
             handle.wait()
+            self._trace_record(
+                "comm_wait_end",
+                operation=operation.name,
+                comm_kind="send",
+            )
         elif event.type == CommEventType.WAIT_RECV_PREV:
             handle = self.recv_prev_reqs[(event.mb_id, event.chunk_id, event.task_type)]
             assert handle is not None
@@ -1242,6 +1349,11 @@ class CDCPPScheduler:
             assert hasattr(
                 handle, "wait_with_lat_delay_in_ms"
             ), "Latency injection requires custom pytorch build for wait_with_lat_delay_in_ms"
+            self._trace_record(
+                "comm_wait_start",
+                operation=operation.name,
+                comm_kind="recv",
+            )
             if self.cdc_recv_prev:
                 # if only bandwidth delay injection, still need this api to inject spin kernel on default stream.
                 handle.wait_with_lat_delay_in_ms(
@@ -1249,6 +1361,11 @@ class CDCPPScheduler:
                 )
             else:
                 handle.wait()
+            self._trace_record(
+                "comm_wait_end",
+                operation=operation.name,
+                comm_kind="recv",
+            )
         else:
             raise NotImplementedError()
 
@@ -1303,6 +1420,19 @@ class CDCPPScheduler:
         is_last_stage = parallel_state.is_pipeline_last_stage()
 
         task_type_to_int = {"F": 0, "B": 1, "W": 2}
+        execute_compute = (
+            (task_type == "F" and (not forward_only or mb_id < num_microbatches))
+            or (task_type in ("B", "W") and not forward_only)
+        )
+        compute_operation = f"{task_type}_{mb_id}_{self.pp_rank}"
+        if execute_compute:
+            self._trace_record(
+                "compute_start",
+                operation=compute_operation,
+                direction=task_type,
+                microbatch=mb_id,
+                chunk=chunk_id,
+            )
 
         if self.exp_manager.profile_in_current_iter():
             if self.exp_manager.cdc_base_memory < 0:
@@ -1503,6 +1633,14 @@ class CDCPPScheduler:
                         model_chunk = model[chunk_id]
                         model_chunk.start_grad_sync()
 
+        if execute_compute:
+            self._trace_record(
+                "compute_end",
+                operation=compute_operation,
+                direction=task_type,
+                microbatch=mb_id,
+                chunk=chunk_id,
+            )
 
         if self.exp_manager.profile_in_current_iter():
             # sync default stream
@@ -1600,6 +1738,11 @@ class CDCPPScheduler:
             assert num_microbatches == self.pp_schedule.sys_config.num_microbatches
         else:
             assert num_microbatches <= self.pp_schedule.sys_config.num_microbatches
+
+        if self.custom_schedule_trace is not None:
+            self.custom_schedule_trace.begin_iteration(
+                forward_only=forward_only
+            )
 
         if self.pp_schedule.has_multiple_chunks():
             assert isinstance(model, list), "Model has multiple chunks"
@@ -1922,6 +2065,8 @@ class CDCPPScheduler:
                 
 
         self.clean_up()
+        if self.custom_schedule_trace is not None:
+            self.custom_schedule_trace.end_iteration()
 
         self.cdc_print(f"forward_data_store: {forward_data_store}", verbose=2)
         return forward_data_store

@@ -158,6 +158,10 @@ def validate_args(args, defaults={}):
         raise ValueError(
             "--custom-comm-dependency requires --custom-pipeline-schedule"
         )
+    if args.custom_schedule_trace_dir is not None and args.custom_pipeline_schedule is None:
+        raise ValueError(
+            "--custom-schedule-trace-dir requires --custom-pipeline-schedule"
+        )
     if args.custom_pipeline_schedule is not None:
         if args.static_schedule is not None or args.dynamic_schedule is not None:
             raise ValueError(

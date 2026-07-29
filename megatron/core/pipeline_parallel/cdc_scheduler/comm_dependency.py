@@ -45,7 +45,11 @@ class CommDependencyController:
 
         self._work_by_op: Dict[CommOpId, dist.Work] = {}
         self._remote_outgoing = defaultdict(list)
+        self._dependency_by_pair = {}
         for dependency in self.spec.dependencies:
+            self._dependency_by_pair[
+                (dependency.trigger, dependency.target)
+            ] = dependency
             if dependency.is_remote:
                 self._remote_outgoing[dependency.trigger].append(dependency)
 
@@ -73,6 +77,12 @@ class CommDependencyController:
             )
 
         for predecessor in self.spec.predecessors_for(operation):
+            dependency = self._dependency_by_pair.get(
+                (predecessor, operation)
+            )
+            dependency_id = (
+                dependency.dependency_id if dependency is not None else None
+            )
             try:
                 work = self._work_by_op[predecessor]
             except KeyError as exc:
@@ -83,13 +93,22 @@ class CommDependencyController:
             self._record(
                 "comm_dependency_wait_start",
                 dependency_kind="local",
+                dependency_id=dependency_id,
                 trigger=predecessor.name,
                 target=operation.name,
             )
             work.wait()
             self._record(
+                "comm_complete",
+                operation=predecessor.name,
+                dependency_ids=(
+                    [dependency_id] if dependency_id is not None else []
+                ),
+            )
+            self._record(
                 "comm_dependency_wait_end",
                 dependency_kind="local",
+                dependency_id=dependency_id,
                 trigger=predecessor.name,
                 target=operation.name,
             )
@@ -127,6 +146,19 @@ class CommDependencyController:
                 target=dependency.target.name,
                 peer_rank=source_rank,
             )
+
+    def dependency_ids_for_target(
+        self,
+        operation: CommOpId,
+        *,
+        forward_only: bool,
+    ) -> List[int]:
+        return [
+            dependency.dependency_id
+            for dependency in self.spec.dependencies
+            if dependency.target == operation
+            and self._dependency_is_active(dependency, forward_only)
+        ]
 
     def register_send(
         self,
@@ -174,7 +206,14 @@ class CommDependencyController:
         try:
             self._record("comm_complete_wait_start", operation=operation.name)
             work.wait()
-            self._record("comm_complete", operation=operation.name)
+            self._record(
+                "comm_complete",
+                operation=operation.name,
+                dependency_ids=[
+                    dependency.dependency_id
+                    for dependency in dependencies
+                ],
+            )
             for dependency in dependencies:
                 target_rank = self.pipeline_global_ranks[
                     dependency.target.src_stage
