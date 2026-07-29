@@ -1,0 +1,39 @@
+{
+  "edge_count": 5,
+  "edges": [
+    {
+      "directed_link": "dcdir_0_1",
+      "from_op": "Comm_F_0_0_1",
+      "to_op": "Comm_F_1_0_1",
+      "reason": "serialize_same_src_dc_on_directed_link"
+    },
+    {
+      "directed_link": "dcdir_2_1",
+      "from_op": "Comm_F_3_2_3",
+      "to_op": "Comm_B_0_2_1",
+      "reason": "serialize_same_src_dc_on_directed_link"
+    },
+    {
+      "directed_link": "dcdir_1_2",
+      "from_op": "Comm_F_3_1_2",
+      "to_op": "Notify_dcdir_1_2_1_to_3_test",
+      "trigger_comm": "Comm_F_3_1_2",
+      "target_comm": "Comm_B_0_3_2",
+      "reason": "insert_notify_delay_op"
+    },
+    {
+      "directed_link": "dcdir_1_2",
+      "from_op": "Notify_dcdir_1_2_1_to_3_test",
+      "to_op": "Comm_B_0_3_2",
+      "trigger_comm": "Comm_F_3_1_2",
+      "target_comm": "Comm_B_0_3_2",
+      "reason": "insert_notify_delay_op"
+    },
+    {
+      "directed_link": "dcdir_1_2",
+      "from_op": "Comm_B_0_3_2",
+      "to_op": "Comm_B_1_3_2",
+      "reason": "serialize_same_src_dc_on_directed_link"
+    }
+  ]
+}
