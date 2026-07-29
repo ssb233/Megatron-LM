@@ -152,7 +152,104 @@ def convert(events):
     dangling = [key for key, values in starts.items() if values]
     if dangling:
         raise ValueError(f"unmatched compute_start events: {dangling[:8]}")
+    chrome.extend(_control_duration_events(events, origin_ns))
     return {"traceEvents": chrome, "displayTimeUnit": "ms"}
+
+
+def _control_duration_events(events, origin_ns):
+    pair_specs = {
+        "comm_wait_start": (
+            "comm_wait_end",
+            lambda event: (
+                event["rank"],
+                event["iteration"],
+                event["operation"],
+                event["comm_kind"],
+            ),
+            "nccl_wait",
+            "nccl",
+        ),
+        "comm_dependency_wait_start": (
+            "comm_dependency_wait_end",
+            lambda event: (
+                event["rank"],
+                event["iteration"],
+                event["trigger"],
+                event["target"],
+            ),
+            "local_dependency_wait",
+            "scheduler",
+        ),
+        "signal_wait_start": (
+            "signal_recv",
+            lambda event: (
+                event["rank"],
+                event["iteration"],
+                event["dependency_id"],
+            ),
+            "gloo_signal_wait",
+            "gloo",
+        ),
+        "signal_send_start": (
+            "signal_send_end",
+            lambda event: (
+                event["rank"],
+                event["iteration"],
+                event["dependency_id"],
+            ),
+            "gloo_signal_send",
+            "gloo",
+        ),
+        "comm_complete_wait_start": (
+            "comm_complete",
+            lambda event: (
+                event["rank"],
+                event["iteration"],
+                event["operation"],
+            ),
+            "trigger_completion_wait",
+            "scheduler",
+        ),
+    }
+    end_to_start = {
+        end_name: (start_name, key_func, range_name, lane)
+        for start_name, (
+            end_name,
+            key_func,
+            range_name,
+            lane,
+        ) in pair_specs.items()
+    }
+    pending = defaultdict(list)
+    durations = []
+    for event in events:
+        name = event["event"]
+        if name in pair_specs:
+            _end, key_func, _range_name, _lane_name = pair_specs[name]
+            pending[(name, key_func(event))].append(event)
+        if name not in end_to_start:
+            continue
+        start_name, key_func, range_name, lane = end_to_start[name]
+        key = (start_name, key_func(event))
+        if not pending[key]:
+            continue
+        start = pending[key].pop(0)
+        durations.append(
+            {
+                "name": range_name,
+                "cat": lane,
+                "ph": "X",
+                "pid": event["rank"],
+                "tid": LANES[lane],
+                "ts": (start["timestamp_ns"] - origin_ns) / 1000,
+                "dur": (
+                    event["timestamp_ns"] - start["timestamp_ns"]
+                )
+                / 1000,
+                "args": _args(event),
+            }
+        )
+    return durations
 
 
 def _aggregate(values):

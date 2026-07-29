@@ -341,10 +341,11 @@ def test_remote_dependency_sends_and_receives_cpu_signal(monkeypatch):
     )
     sent = []
 
-    def fake_send(payload, dst, group, tag):
+    def fake_isend(payload, dst, group, tag):
         sent.append((int(payload.item()), dst, group, tag))
+        return _FakeWork()
 
-    monkeypatch.setattr(comm_dependency.dist, "send", fake_send)
+    monkeypatch.setattr(comm_dependency.dist, "isend", fake_isend)
     source = CommDependencyController(
         spec,
         pipeline_stage=1,
@@ -389,7 +390,7 @@ def test_forward_only_skips_signal_whose_target_is_backward(monkeypatch):
     )
     monkeypatch.setattr(
         comm_dependency.dist,
-        "send",
+        "isend",
         lambda *args, **kwargs: pytest.fail("unexpected signal"),
     )
     source = CommDependencyController(

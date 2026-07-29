@@ -986,6 +986,10 @@ class CDCPPScheduler:
         assert not args.variable_seq_lengths
 
         if self.custom_schedule_spec is not None:
+            assert dist.get_world_size() == 4, (
+                "custom communication dependencies currently require exactly "
+                "four distributed ranks on one node"
+            )
             assert args.pipeline_model_parallel_size == 4, (
                 "custom communication dependencies currently support PP=4 only"
             )
@@ -995,7 +999,17 @@ class CDCPPScheduler:
             assert parallel_state.get_data_parallel_world_size() == 1, (
                 "custom communication dependencies currently require DP=1"
             )
-            assert args.virtual_pipeline_model_parallel_size in (None, 1), (
+            assert args.num_subparts == 1, (
+                "custom pipeline schedule requires --num_subparts 1"
+            )
+            assert args.rampup_batch_size is None, (
+                "custom pipeline schedule requires a fixed microbatch count"
+            )
+            assert not args.standalone_embedding_stage, (
+                "custom pipeline schedule does not support a standalone "
+                "embedding stage"
+            )
+            assert args.virtual_pipeline_model_parallel_size == 1, (
                 "custom pipeline schedule requires exactly one model chunk"
             )
             assert args.recompute_granularity is None, (
@@ -1307,16 +1321,15 @@ class CDCPPScheduler:
         elif event.type == CommEventType.WAIT_RECV_NEXT:
             handle = self.recv_next_reqs[(event.mb_id, event.chunk_id, event.task_type)]
             assert handle is not None
-            # handle.wait()
-            assert hasattr(
-                handle, "wait_with_lat_delay_in_ms"
-            ), "Latency injection requires custom pytorch build for wait_with_lat_delay_in_ms"
             self._trace_record(
                 "comm_wait_start",
                 operation=operation.name,
                 comm_kind="recv",
             )
             if self.cdc_recv_next:
+                assert hasattr(
+                    handle, "wait_with_lat_delay_in_ms"
+                ), "Latency injection requires custom pytorch build for wait_with_lat_delay_in_ms"
                 # if only bandwidth delay injection, still need this api to inject spin kernel on default stream.
                 handle.wait_with_lat_delay_in_ms(
                     timedelta(milliseconds=self.injected_latency_delay[1] * 1000)
@@ -1345,16 +1358,15 @@ class CDCPPScheduler:
         elif event.type == CommEventType.WAIT_RECV_PREV:
             handle = self.recv_prev_reqs[(event.mb_id, event.chunk_id, event.task_type)]
             assert handle is not None
-            # handle.wait()
-            assert hasattr(
-                handle, "wait_with_lat_delay_in_ms"
-            ), "Latency injection requires custom pytorch build for wait_with_lat_delay_in_ms"
             self._trace_record(
                 "comm_wait_start",
                 operation=operation.name,
                 comm_kind="recv",
             )
             if self.cdc_recv_prev:
+                assert hasattr(
+                    handle, "wait_with_lat_delay_in_ms"
+                ), "Latency injection requires custom pytorch build for wait_with_lat_delay_in_ms"
                 # if only bandwidth delay injection, still need this api to inject spin kernel on default stream.
                 handle.wait_with_lat_delay_in_ms(
                     timedelta(milliseconds=self.injected_latency_delay[1] * 1000)
@@ -1734,7 +1746,12 @@ class CDCPPScheduler:
     ):
         # self.cdc_print(f'first_stage (virtual): {parallel_state.is_pipeline_first_stage(ignore_virtual=True)} ({parallel_state.is_pipeline_first_stage()}), last_stage (virtual): {parallel_state.is_pipeline_last_stage(ignore_virtual=True)} ({parallel_state.is_pipeline_last_stage()})')
 
-        if not forward_only:
+        if self.custom_schedule_spec is not None:
+            assert num_microbatches == self.pp_schedule.sys_config.num_microbatches, (
+                "custom pipeline schedule requires the runtime microbatch count "
+                "to match replay.order.json in training and evaluation"
+            )
+        elif not forward_only:
             assert num_microbatches == self.pp_schedule.sys_config.num_microbatches
         else:
             assert num_microbatches <= self.pp_schedule.sys_config.num_microbatches
@@ -2020,9 +2037,13 @@ class CDCPPScheduler:
             # write to json
             timpstamp = int(time.time())
             schedule = (
-                self.args.static_schedule
-                if self.use_static_schedule
-                else self.args.dynamic_schedule
+                "Custom"
+                if self.custom_schedule_spec is not None
+                else (
+                    self.args.static_schedule
+                    if self.use_static_schedule
+                    else self.args.dynamic_schedule
+                )
             )
             result_dict = {
                         "iter_time": tuple_keys_to_str(self.exp_manager.exp_logging_iter_time),

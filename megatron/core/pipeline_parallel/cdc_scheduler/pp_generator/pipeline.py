@@ -65,6 +65,7 @@ class TaskNode:
 class Pipeline:
     def __init__(self, sys_config: SystemConfig) -> None:
         self.sys_config = sys_config
+        self.custom_schedule_spec = None
 
         self.device_scheduled_tasks: List[List[TaskNode]] = [
             [] for _ in range(self.sys_config.num_devices)
@@ -405,6 +406,7 @@ class OneChunkPipelineTemplate(Pipeline):
         
         assert sys_config.num_chunks == 1
         self.sys_config = sys_config
+        self.custom_schedule_spec = None
         # self._scalar_config_to_list()
 
         self.device_scheduled_tasks: List[List[TaskNode]] = [

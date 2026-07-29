@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 import threading
+import time
 from typing import Dict, Iterable, List, Optional, Sequence
 
 import torch
@@ -57,6 +58,29 @@ class CommDependencyController:
         self._thread_errors: List[BaseException] = []
         self._lock = threading.Lock()
 
+    @staticmethod
+    def _wait_for_work_completion(
+        work: dist.Work,
+        operation: CommOpId,
+        timeout_seconds: float = 600.0,
+    ) -> None:
+        """Wait for actual NCCL completion, not only CUDA stream ordering."""
+
+        if hasattr(work, "is_completed"):
+            deadline = time.monotonic() + timeout_seconds
+            while not work.is_completed():
+                if time.monotonic() >= deadline:
+                    raise RuntimeError(
+                        f"timed out waiting for NCCL completion of "
+                        f"{operation.name}"
+                    )
+                time.sleep(0.0001)
+            return
+        # Preserve support for test/fallback Work implementations that do not
+        # expose is_completed(). Avoid Work.wait() in the Gloo worker thread
+        # for NCCL Work because CUDA's current device is thread-local.
+        work.wait()
+
     def _record(self, event: str, **fields) -> None:
         if self.trace is not None:
             self.trace.record(event, **fields)
@@ -97,7 +121,7 @@ class CommDependencyController:
                 trigger=predecessor.name,
                 target=operation.name,
             )
-            work.wait()
+            self._wait_for_work_completion(work, predecessor)
             self._record(
                 "comm_complete",
                 operation=predecessor.name,
@@ -205,7 +229,7 @@ class CommDependencyController:
     ) -> None:
         try:
             self._record("comm_complete_wait_start", operation=operation.name)
-            work.wait()
+            self._wait_for_work_completion(work, operation)
             self._record(
                 "comm_complete",
                 operation=operation.name,
@@ -214,6 +238,7 @@ class CommDependencyController:
                     for dependency in dependencies
                 ],
             )
+            pending_signals = []
             for dependency in dependencies:
                 target_rank = self.pipeline_global_ranks[
                     dependency.target.src_stage
@@ -230,12 +255,26 @@ class CommDependencyController:
                     target=dependency.target.name,
                     peer_rank=target_rank,
                 )
-                dist.send(
+                signal_work = dist.isend(
                     payload,
                     dst=target_rank,
                     group=self.control_group,
                     tag=self._signal_tag(dependency),
                 )
+                # Retain the CPU tensor until Gloo has consumed it. Posting all
+                # target signals before waiting avoids head-of-line deadlocks
+                # when one trigger releases multiple target ranks.
+                pending_signals.append(
+                    (dependency, target_rank, payload, signal_work)
+                )
+
+            for (
+                dependency,
+                target_rank,
+                _payload,
+                signal_work,
+            ) in pending_signals:
+                signal_work.wait()
                 self._record(
                     "signal_send_end",
                     dependency_id=dependency.dependency_id,
@@ -251,7 +290,7 @@ class CommDependencyController:
     def _signal_tag(dependency: CommDependency) -> int:
         return _SIGNAL_TAG_BASE + dependency.dependency_id
 
-    def finish_iteration(self, timeout_seconds: float = 60.0) -> None:
+    def finish_iteration(self, timeout_seconds: float = 600.0) -> None:
         """Join signal workers and reset operation state for the next iteration."""
 
         for thread in self._threads:
