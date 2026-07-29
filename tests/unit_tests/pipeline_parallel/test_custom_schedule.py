@@ -8,6 +8,13 @@ from megatron.core.pipeline_parallel.cdc_scheduler.custom_schedule import (
     CommOpId,
     load_custom_schedule,
 )
+from megatron.core.pipeline_parallel.cdc_scheduler.pp_generator.pipeline import (
+    CustomOneChunkPipeline,
+    get_custom_static_schedule,
+)
+from megatron.core.pipeline_parallel.cdc_scheduler.pp_generator.pipeline_config import (
+    SystemConfig,
+)
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -162,3 +169,39 @@ def test_digest_is_independent_of_json_object_order(tmp_path):
         num_microbatches=4,
     )
     assert first.canonical_sha256 == second.canonical_sha256
+
+
+def test_custom_pipeline_preserves_each_stage_compute_order():
+    spec = load_custom_schedule(
+        str(SCHEDULE),
+        str(DEPENDENCIES),
+        pp_size=4,
+        num_microbatches=4,
+    )
+    pipeline = get_custom_static_schedule(spec)
+
+    for stage, expected in enumerate(spec.compute_order):
+        actual = pipeline.device_scheduled_tasks[stage]
+        assert [
+            (task.task_type, task.microbatch_id, task.chunk_id) for task in actual
+        ] == [(operation.direction, operation.microbatch, 0) for operation in expected]
+        assert all(
+            task.prev_device_task is previous
+            for task, previous in zip(actual[1:], actual[:-1])
+        )
+
+    assert pipeline.device_scheduled_tasks[3][1].task_type == "B"
+    assert pipeline.device_scheduled_tasks[3][1].microbatch_id == 0
+
+
+def test_custom_pipeline_rejects_mismatched_system_config():
+    spec = load_custom_schedule(
+        str(SCHEDULE),
+        None,
+        pp_size=4,
+        num_microbatches=4,
+    )
+    config = SystemConfig(num_devices=3, num_microbatches=4, num_chunks=1)
+
+    with pytest.raises(ValueError, match="PP size"):
+        CustomOneChunkPipeline(config, spec)

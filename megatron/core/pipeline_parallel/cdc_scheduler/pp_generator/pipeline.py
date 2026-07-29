@@ -10,6 +10,8 @@ from .zbv_heuristic import OfficialZBVHeuristicScheduler
 from .svg_event import draw_events, TIME_PER_UNIT
 import os
 
+from ..custom_schedule import CustomScheduleSpec
+
 
 class TaskNode:
     def __init__(
@@ -452,6 +454,55 @@ class OneChunkPipelineTemplate(Pipeline):
             return task.task_type == seq_ele[1] and task.microbatch_id == mb
 
         return sequence, condition
+
+
+class CustomOneChunkPipeline(OneChunkPipelineTemplate):
+    """A static one-chunk pipeline whose per-stage order comes from Magellan."""
+
+    def __init__(
+        self,
+        sys_config: SystemConfig,
+        custom_schedule_spec: CustomScheduleSpec,
+    ) -> None:
+        super().__init__(sys_config)
+        if custom_schedule_spec.pp_size != sys_config.num_devices:
+            raise ValueError(
+                "custom schedule PP size does not match SystemConfig: "
+                f"{custom_schedule_spec.pp_size} != {sys_config.num_devices}"
+            )
+        if custom_schedule_spec.num_microbatches != sys_config.num_microbatches:
+            raise ValueError(
+                "custom schedule microbatch count does not match SystemConfig: "
+                f"{custom_schedule_spec.num_microbatches} != "
+                f"{sys_config.num_microbatches}"
+            )
+        self.custom_schedule_spec = custom_schedule_spec
+
+    def pipeline_name(self):
+        return "Custom"
+
+    def schedule(self) -> None:
+        if any(self.device_scheduled_tasks):
+            raise RuntimeError("custom pipeline has already been scheduled")
+
+        for device_id, operation_order in enumerate(
+            self.custom_schedule_spec.compute_order
+        ):
+            for operation in operation_order:
+                device_tasks = self.device_scheduled_tasks[device_id]
+                device_tasks.append(
+                    TaskNode(
+                        task_type=operation.direction,
+                        device_id=device_id,
+                        microbatch_id=operation.microbatch,
+                        chunk_id=0,
+                        prev_device_task=device_tasks[-1] if device_tasks else None,
+                        prev_microbatch_task=None,
+                    )
+                )
+
+        self._resolve_batch_dependency()
+
 
 class TwoChunkLoopPipelineTemplate(Pipeline):
     def __init__(self, sys_config: SystemConfig) -> None:
@@ -1376,4 +1427,26 @@ def get_default_static_schedule(
         return pipeline
     pipeline.solve_dependencies()
 
+    return pipeline
+
+
+def get_custom_static_schedule(
+    custom_schedule_spec: CustomScheduleSpec,
+    not_to_solve_deps: bool = False,
+) -> CustomOneChunkPipeline:
+    """Create the CrossPipe static-pipeline representation of a custom order."""
+
+    default_cfg = SystemConfig(
+        num_devices=custom_schedule_spec.pp_size,
+        num_microbatches=custom_schedule_spec.num_microbatches,
+        num_chunks=1,
+        T_F=20,
+        T_B=40,
+        T_W=0,
+        T_alpha=0,
+    )
+    pipeline = CustomOneChunkPipeline(default_cfg, custom_schedule_spec)
+    pipeline.schedule()
+    if not not_to_solve_deps:
+        pipeline.solve_dependencies()
     return pipeline

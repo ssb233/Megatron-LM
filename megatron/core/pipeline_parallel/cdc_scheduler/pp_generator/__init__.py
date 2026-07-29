@@ -1,1 +1,7 @@
-from .pipeline import Pipeline, TaskNode, get_default_static_schedule
+from .pipeline import (
+    CustomOneChunkPipeline,
+    Pipeline,
+    TaskNode,
+    get_custom_static_schedule,
+    get_default_static_schedule,
+)
