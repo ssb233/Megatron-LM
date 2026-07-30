@@ -43,7 +43,8 @@ canonical SHA256 供各 rank 做输入一致性检查。`pp_generator` 将解析
 `comm_dependency.py` 在 NCCL 发送提交前执行依赖门控：local dependency 等待
 同 rank 的前置 NCCL Work 完成，remote dependency 由前置通信完成后的后台
 线程通过 CPU/Gloo process group 发出 `int64` signal。目标发送端接收 signal
-后才提交 NCCL send；接收端不会在 Gloo 上提前等待，从而避免形成环形等待。
+后才提交 NCCL send。Gloo `Work` 必须调用带超时的 `wait()` 驱动完成；仅轮询
+`is_completed()` 在当前 PyTorch/Gloo 版本上不会取得进展。
 
 `parallel_state.py` 创建和管理 pipeline control Gloo group；
 `custom_schedule_trace.py` 记录 compute、NCCL、local wait、signal send/recv
@@ -264,5 +265,70 @@ At runtime, a target sender errors if a required local NCCL Work was never
 submitted. Signal workers are joined at iteration cleanup and report a
 timeout or background Gloo exception instead of silently continuing.
 
-Runtime verification is intentionally pending until these changes are moved
-to the Linux four-V100 machine.
+## 4×V100 实机验证（2026-07-30）
+
+验证服务器使用单节点 4 张 Tesla V100-SXM2-32GB。可复现实验入口为：
+
+```bash
+cd /home/songxb26/mnist/crosspipi-magellan
+RUN_ROOT="$PWD/runs/custom_schedule_v100/validation_20260730"
+
+test_crossdc/custom_schedule_v100/run_custom_schedule.sh A "$RUN_ROOT"
+test_crossdc/custom_schedule_v100/run_custom_schedule.sh B "$RUN_ROOT"
+test_crossdc/custom_schedule_v100/run_custom_schedule.sh C "$RUN_ROOT"
+test_crossdc/custom_schedule_v100/run_custom_schedule.sh C_TRACE "$RUN_ROOT"
+```
+
+脚本使用 8 个 microbatch、8 层小型 GPT、PP=4、TP=DP=1、FP16，不启用重计算，
+也不注入通信带宽或时延。A 是默认 CrossPipe 1F1B，B 是自定义 order，C 是
+自定义 order 加通信依赖；`C_TRACE` 只用于核对事件关系。
+
+本次运行发现并修复了三个真实问题：
+
+1. local GPT LayerNorm 路径因函数内覆盖 `LNImpl` 触发
+   `UnboundLocalError`；
+2. custom execution planner 把所有 receive 提前到首个 compute 前，导致
+   NCCL channel 顺序死锁；现在 receive 按 sender 完成时间、consumer 使用时间
+   和 channel 单调顺序放置，并拒绝无法满足的顺序；
+3. CPU/Gloo `irecv` 仅轮询 `Work.is_completed()` 无法完成；现在使用带超时的
+   `Work.wait()`。
+
+A、B、C 和 `C_TRACE` 均完成 20 个训练 iteration。去掉 1 个计时 warmup 后，
+每组 7 个正式样本的结果为：
+
+| 模式 | median iteration |
+|---|---:|
+| A 默认 1F1B | 227.526 ms |
+| B 自定义 order | 257.033 ms |
+| C 自定义 order + dependency | 268.739 ms |
+
+对应差值：
+
+```text
+B - A = 29.507 ms (+12.969%)
+C - B = 11.706 ms (+4.554%)
+C - A = 41.213 ms (+18.114%)
+```
+
+`C-B` 是额外串行约束与 Gloo 控制信号的合计开销，不能解释成纯 signal
+开销。trace 中共有 7 个 remote dependency；取 iteration 3..10 的 56 个
+样本，使用
+`signal_recv - max(signal_send_start, signal_wait_start)` 作为“两端均已提交
+之后”的 signal 完成延迟，median 为 225.405 μs，p95 为 290.480 μs。
+`signal_recv -> target_submit` 的 median 为 345.858 μs。
+
+实验原始结果留在服务器的（不提交到 Git）：
+
+```text
+runs/custom_schedule_v100/validation_20260730/
+  comparison.json
+  signal_ready_latency.json
+  C_trace/trace/custom_schedule.chrome.json
+  C_trace/trace/custom_schedule.summary.json
+  C_trace/trace/rank_0.jsonl ... rank_3.jsonl
+```
+
+Chrome trace 可用 Perfetto 打开，以 `microbatch`、F/B、compute/communication、
+dependency id 和 signal flow 检查执行顺序。此次实机验证证明当前实现可在
+单机 4×V100 上执行非默认通信顺序及额外跨 rank 通信依赖；它不是跨 DC
+性能结论，因为实验刻意使用 `num_dc=1` 和零注入时延。

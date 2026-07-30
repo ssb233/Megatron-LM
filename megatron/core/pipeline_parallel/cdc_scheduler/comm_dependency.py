@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import timedelta
 import threading
 import time
 from typing import Dict, Iterable, List, Optional, Sequence
@@ -102,29 +103,27 @@ class CommDependencyController:
         work: dist.Work,
         dependency: CommDependency,
     ) -> None:
-        if not hasattr(work, "is_completed"):
-            work.wait()
-            return
+        try:
+            completed = work.wait(
+                timeout=timedelta(seconds=self.timeout_seconds)
+            )
+        except TypeError:
+            # Test and compatibility Work implementations may expose wait()
+            # without the optional timeout argument.
+            completed = work.wait()
+        except RuntimeError as exc:
+            raise RuntimeError(
+                f"rank/stage {self.pipeline_stage} timed out waiting for "
+                f"dependency {dependency.dependency_id} "
+                f"{dependency.trigger.name} -> {dependency.target.name}"
+            ) from exc
 
-        deadline = time.monotonic() + self.timeout_seconds
-        while not work.is_completed():
-            with self._lock:
-                worker_errors = tuple(self._thread_errors)
-            if worker_errors:
-                raise RuntimeError(
-                    f"rank/stage {self.pipeline_stage} failed while waiting for "
-                    f"dependency {dependency.dependency_id} "
-                    f"{dependency.trigger.name} -> {dependency.target.name}; "
-                    f"signal worker errors: {worker_errors!r}"
-                )
-            if time.monotonic() >= deadline:
-                raise RuntimeError(
-                    f"rank/stage {self.pipeline_stage} timed out waiting for "
-                    f"dependency {dependency.dependency_id} "
-                    f"{dependency.trigger.name} -> {dependency.target.name}"
-                )
-            time.sleep(0.0001)
-        work.wait()
+        if completed is False:
+            raise RuntimeError(
+                f"rank/stage {self.pipeline_stage} timed out waiting for "
+                f"dependency {dependency.dependency_id} "
+                f"{dependency.trigger.name} -> {dependency.target.name}"
+            )
 
     def before_send(self, operation: CommOpId, *, forward_only: bool) -> None:
         """Wait for completion prerequisites before submitting ``operation``."""

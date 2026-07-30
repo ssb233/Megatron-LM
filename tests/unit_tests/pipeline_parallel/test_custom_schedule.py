@@ -245,7 +245,7 @@ def _events_for_stage(planner, stage, event_types):
     ]
 
 
-def test_execution_planner_uses_non_1f1b_communication_order(tmp_path):
+def test_execution_planner_rejects_receive_order_after_consumer(tmp_path):
     schedule = _load_schedule_json()
     schedule["comm"]["F_0_1"].reverse()
     path = _write_json(tmp_path, "reversed-forward-channel.json", schedule)
@@ -255,23 +255,44 @@ def test_execution_planner_uses_non_1f1b_communication_order(tmp_path):
         pp_size=4,
         num_microbatches=4,
     )
+
+    planner = ExecutionPlanner(get_custom_static_schedule(spec))
+
+    with pytest.raises(ValueError, match="after its consumer"):
+        planner.generate_execution_plan()
+
+
+def test_execution_planner_does_not_hoist_future_receives():
+    spec = load_custom_schedule(
+        str(SCHEDULE),
+        None,
+        pp_size=4,
+        num_microbatches=4,
+    )
     planner = ExecutionPlanner(get_custom_static_schedule(spec))
     planner.generate_execution_plan()
 
-    sends = _events_for_stage(
-        planner, 0, {CommEventType.POST_SEND_NEXT}
+    first_task_events = planner.execution_plan[0][0].pre_events
+    assert not any(
+        isinstance(event, CommEvent)
+        and event.type == CommEventType.POST_RECV_NEXT
+        for event in first_task_events
     )
-    assert [event.mb_id for event in sends] == [3, 2, 1, 0]
-    assert all(event.task_type == "F" for event in sends)
 
-    recv_posts = [
-        event
-        for event in planner.execution_plan[1][0].pre_events
+    backward_zero = next(
+        task
+        for task in planner.execution_plan[0]
+        if task.task_desc.type == "B" and task.task_desc.mb_id == 0
+    )
+    recv_types = [
+        event.type
+        for event in backward_zero.pre_events
         if isinstance(event, CommEvent)
-        and event.type == CommEventType.POST_RECV_PREV
-        and event.task_type == "F"
     ]
-    assert [event.mb_id for event in recv_posts] == [3, 2, 1, 0]
+    assert recv_types[:2] == [
+        CommEventType.POST_RECV_NEXT,
+        CommEventType.WAIT_RECV_NEXT,
+    ]
 
 
 def test_execution_planner_places_local_cross_channel_dependency_in_order():
@@ -307,6 +328,20 @@ class _FakeWork:
 
     def wait(self):
         self.wait_count += 1
+
+
+class _FakeGlooWork:
+    def __init__(self):
+        self.wait_count = 0
+
+    def is_completed(self):
+        # Matches the server's Gloo Work behavior: polling alone does not
+        # advance completion, while wait() consumes the completed receive.
+        return False
+
+    def wait(self, timeout=None):
+        self.wait_count += 1
+        return True
 
 
 def test_local_dependency_waits_for_predecessor_work():
@@ -380,6 +415,41 @@ def test_remote_dependency_sends_and_receives_cpu_signal(monkeypatch):
         CommOpId("B", 0, 3, 2),
         forward_only=False,
     )
+
+
+def test_remote_dependency_waits_on_gloo_work_instead_of_polling(monkeypatch):
+    spec = load_custom_schedule(
+        str(SCHEDULE),
+        str(DEPENDENCIES),
+        pp_size=4,
+        num_microbatches=4,
+    )
+    remote_dependency = next(
+        dependency
+        for dependency in spec.dependencies
+        if dependency.is_remote
+    )
+    signal_work = _FakeGlooWork()
+
+    def fake_irecv(payload, src, group, tag):
+        payload.fill_(remote_dependency.dependency_id)
+        return signal_work
+
+    monkeypatch.setattr(comm_dependency.dist, "irecv", fake_irecv)
+    target = CommDependencyController(
+        spec,
+        pipeline_stage=remote_dependency.target.src_stage,
+        control_group="gloo",
+        pipeline_global_ranks=[0, 1, 2, 3],
+        timeout_seconds=0,
+    )
+
+    target.before_send(
+        remote_dependency.target,
+        forward_only=False,
+    )
+
+    assert signal_work.wait_count == 1
 
 
 def test_forward_only_skips_signal_whose_target_is_backward(monkeypatch):

@@ -111,12 +111,11 @@ def get_gpt_layer_local_spec(
     mlp = _get_mlp_module_spec(
         use_te=False, num_experts=num_experts, moe_grouped_gemm=moe_grouped_gemm
     )
-    if normalization == "RMSNorm":
-        LNImpl = CompiledRMSNorm
+    norm_impl = CompiledRMSNorm if normalization == "RMSNorm" else LNImpl
     return ModuleSpec(
         module=TransformerLayer,
         submodules=TransformerLayerSubmodules(
-            input_layernorm=LNImpl,
+            input_layernorm=norm_impl,
             self_attention=ModuleSpec(
                 module=SelfAttention,
                 params={"attn_mask_type": AttnMaskType.causal},
@@ -124,12 +123,12 @@ def get_gpt_layer_local_spec(
                     linear_qkv=ColumnParallelLinear,
                     core_attention=DotProductAttention,
                     linear_proj=RowParallelLinear,
-                    q_layernorm=LNImpl if qk_layernorm else IdentityOp,
-                    k_layernorm=LNImpl if qk_layernorm else IdentityOp,
+                    q_layernorm=norm_impl if qk_layernorm else IdentityOp,
+                    k_layernorm=norm_impl if qk_layernorm else IdentityOp,
                 ),
             ),
             self_attn_bda=get_bias_dropout_add,
-            pre_mlp_layernorm=LNImpl,
+            pre_mlp_layernorm=norm_impl,
             mlp=mlp,
             mlp_bda=get_bias_dropout_add,
             sharded_state_dict_keys_map={

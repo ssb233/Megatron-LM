@@ -258,8 +258,31 @@ class ExecutionPlanner:
                 custom_spec.comm_position(item[0]),
             )
         )
-        first_compute = self.execution_plan[dev_id][0]
+        device_tasks = self.pipeline.device_scheduled_tasks[dev_id]
+        task_indices = {
+            task: index for index, task in enumerate(device_tasks)
+        }
+        last_insertion_by_channel = {}
         for operation, sender_task, consumer_task, event_type in ordered:
+            task_to_insert = consumer_task
+            while (
+                task_to_insert.start_time > sender_task.completion_time
+                and task_to_insert.prev_device_task is not None
+            ):
+                task_to_insert = task_to_insert.prev_device_task
+
+            insertion_index = max(
+                task_indices[task_to_insert],
+                last_insertion_by_channel.get(operation.channel, 0),
+            )
+            consumer_index = task_indices[consumer_task]
+            if insertion_index > consumer_index:
+                raise ValueError(
+                    f"custom communication order places receive for "
+                    f"{operation.name} after its consumer"
+                )
+
+            last_insertion_by_channel[operation.channel] = insertion_index
             event = CommEvent(
                 type=event_type,
                 src_dev_id=sender_task.device_id,
@@ -270,7 +293,9 @@ class ExecutionPlanner:
                 ].task_desc.chunk_id,
                 mb_id=consumer_task.microbatch_id,
             )
-            first_compute.pre_events.append(event)
+            self.execution_plan[dev_id][
+                insertion_index
+            ].pre_events.append(event)
             tasknode_to_computetask[consumer_task].recv_event = event
 
     def generate_execution_plan(self):

@@ -11,3 +11,4 @@ local/
 .gitmodules
 .triton_cache
 .worktrees/
+/runs/
