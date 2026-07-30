@@ -8,7 +8,7 @@ signal transfer, and receiver-side dispatch overhead.
 
 ## Data and metric definitions
 
-All three columns use the same 56 remote communication-dependency samples from
+The source trace contains 56 remote communication-dependency samples from
 formal iterations 3-10 of the existing `C_TRACE` run.
 
 1. **Sender dispatch** (`complete -> send`):
@@ -22,8 +22,10 @@ formal iterations 3-10 of the existing `C_TRACE` run.
    This is the existing orange distribution, moved unchanged from column two
    to column three.
 
-The expected medians from the archived trace are approximately 183 us, 225 us,
-and 346 us, respectively.
+The sender-side plot excludes the single approximately 1.19 ms tail sample,
+leaving 55 displayed sender samples with a median of approximately 183 us.
+The Gloo and receiver columns retain all 56 samples, with medians of
+approximately 225 us and 346 us, respectively.
 
 ## Visual design
 
@@ -35,11 +37,12 @@ and 346 us, respectively.
   `sender complete->send`, `Gloo ready->recv`, and
   `receiver recv->submit`.
 - Retain the title `Control-path latency`, y-axis in microseconds, and the
-  `n = 56 dependencies; iterations 3-10` annotation.
-- The sender distribution contains one approximately 1.19 ms tail sample.
-  Keep the main axis comparable to the existing 0-600 us figure and mark the
-  clipped tail explicitly as `1 sample at 1.19 ms`; retain the exact value in
-  source data.
+  iterations 3-10 annotation.
+- Keep the main axis comparable to the existing 0-600 us figure. Do not draw
+  or annotate the approximately 1.19 ms sender-side tail sample. State the
+  displayed sample counts as `sender n = 55; Gloo/receiver n = 56`.
+- Preserve the excluded raw sample in the auditable source CSV with an
+  `included_in_plot=false` field.
 
 ## Outputs
 
@@ -53,8 +56,10 @@ and 346 us, respectively.
 
 ## Verification
 
-- Assert exactly 56 matched samples and identical `(iteration, dependency_id)`
-  keys across all three metrics.
+- Assert exactly 56 matched raw samples and identical
+  `(iteration, dependency_id)` keys across all three metrics.
+- Assert exactly one sender sample is excluded by the documented 600 us
+  plotting cutoff, leaving 55 displayed sender samples.
 - Assert timestamp ordering:
   `comm_complete <= signal_send_start <= signal_recv <= target_submit`.
 - Check medians against values independently calculated from the archived raw
