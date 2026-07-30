@@ -200,3 +200,13 @@ def test_magellan_launcher_requires_both_schedule_files(tmp_path):
 
     assert result.returncode == 2
     assert "requires order and dependency JSON" in result.stderr
+
+
+def test_moe_launcher_disables_linear_bias_for_alltoall_dispatcher():
+    launcher = LAUNCHER.read_text(encoding="utf-8")
+    moe_block = launcher.split(
+        'if [[ -n "${NUM_EXPERTS}" ]]; then',
+        maxsplit=1,
+    )[1].split("fi", maxsplit=1)[0]
+
+    assert "--disable-bias-linear" in moe_block

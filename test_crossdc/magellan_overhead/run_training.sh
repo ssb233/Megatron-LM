@@ -153,6 +153,7 @@ if [[ -n "${NUM_EXPERTS}" ]]; then
     --moe-token-dispatcher-type alltoall
     --moe-router-load-balancing-type aux_loss
     --moe-aux-loss-coeff 0.01
+    --disable-bias-linear
   )
 fi
 
