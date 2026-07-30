@@ -1,0 +1,481 @@
+Execution Plan:
+========================================================================================================================
+
+Device 0:
+------------------------------------------------------------
+  Prev Events:
+  Compute Task:
+    F mb0 chunk0  start0 end20
+  Post Events:
+    CommEvent.POST_SEND_NEXT 0 -> 1 F c0 mb0
+------------------------------------------------------------
+  Prev Events:
+  Compute Task:
+    F mb1 chunk0  start20 end40
+  Post Events:
+    CommEvent.POST_SEND_NEXT 0 -> 1 F c0 mb1
+------------------------------------------------------------
+  Prev Events:
+  Compute Task:
+    F mb2 chunk0  start40 end60
+  Post Events:
+    CommEvent.POST_SEND_NEXT 0 -> 1 F c0 mb2
+------------------------------------------------------------
+  Prev Events:
+  Compute Task:
+    F mb3 chunk0  start60 end80
+  Post Events:
+    CommEvent.POST_SEND_NEXT 0 -> 1 F c0 mb3
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 1 -> 0 B c0 mb0
+    CommEvent.WAIT_RECV_NEXT 1 -> 0 B c0 mb0
+  Compute Task:
+    B mb0 chunk0  start200 end240
+  Post Events:
+------------------------------------------------------------
+  Prev Events:
+  Compute Task:
+    F mb4 chunk0  start240 end260
+  Post Events:
+    CommEvent.POST_SEND_NEXT 0 -> 1 F c0 mb4
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 1 -> 0 B c0 mb1
+    CommEvent.WAIT_RECV_NEXT 1 -> 0 B c0 mb1
+  Compute Task:
+    B mb1 chunk0  start260 end300
+  Post Events:
+------------------------------------------------------------
+  Prev Events:
+  Compute Task:
+    F mb5 chunk0  start300 end320
+  Post Events:
+    CommEvent.POST_SEND_NEXT 0 -> 1 F c0 mb5
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 1 -> 0 B c0 mb2
+    CommEvent.WAIT_RECV_NEXT 1 -> 0 B c0 mb2
+  Compute Task:
+    B mb2 chunk0  start320 end360
+  Post Events:
+------------------------------------------------------------
+  Prev Events:
+  Compute Task:
+    F mb6 chunk0  start360 end380
+  Post Events:
+    CommEvent.POST_SEND_NEXT 0 -> 1 F c0 mb6
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 1 -> 0 B c0 mb3
+    CommEvent.WAIT_RECV_NEXT 1 -> 0 B c0 mb3
+  Compute Task:
+    B mb3 chunk0  start380 end420
+  Post Events:
+------------------------------------------------------------
+  Prev Events:
+  Compute Task:
+    F mb7 chunk0  start420 end440
+  Post Events:
+    CommEvent.POST_SEND_NEXT 0 -> 1 F c0 mb7
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 1 -> 0 B c0 mb4
+    CommEvent.WAIT_RECV_NEXT 1 -> 0 B c0 mb4
+  Compute Task:
+    B mb4 chunk0  start440 end480
+  Post Events:
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 1 -> 0 B c0 mb5
+    CommEvent.WAIT_RECV_NEXT 1 -> 0 B c0 mb5
+  Compute Task:
+    B mb5 chunk0  start500 end540
+  Post Events:
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 1 -> 0 B c0 mb6
+    CommEvent.WAIT_RECV_NEXT 1 -> 0 B c0 mb6
+  Compute Task:
+    B mb6 chunk0  start560 end600
+  Post Events:
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 1 -> 0 B c0 mb7
+    CommEvent.WAIT_RECV_NEXT 1 -> 0 B c0 mb7
+  Compute Task:
+    B mb7 chunk0  start620 end660
+  Post Events:
+========================================================================================================================
+
+
+Device 1:
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 0 -> 1 F c0 mb0
+    CommEvent.WAIT_RECV_PREV 0 -> 1 F c0 mb0
+  Compute Task:
+    F mb0 chunk0  start20 end40
+  Post Events:
+    CommEvent.POST_SEND_NEXT 1 -> 2 F c0 mb0
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 0 -> 1 F c0 mb1
+    CommEvent.WAIT_RECV_PREV 0 -> 1 F c0 mb1
+  Compute Task:
+    F mb1 chunk0  start40 end60
+  Post Events:
+    CommEvent.POST_SEND_NEXT 1 -> 2 F c0 mb1
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 0 -> 1 F c0 mb2
+    CommEvent.POST_RECV_PREV 0 -> 1 F c0 mb3
+    CommEvent.WAIT_RECV_PREV 0 -> 1 F c0 mb2
+  Compute Task:
+    F mb2 chunk0  start60 end80
+  Post Events:
+    CommEvent.POST_SEND_NEXT 1 -> 2 F c0 mb2
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 2 -> 1 B c0 mb0
+    CommEvent.WAIT_RECV_NEXT 2 -> 1 B c0 mb0
+  Compute Task:
+    B mb0 chunk0  start160 end200
+  Post Events:
+    CommEvent.POST_SEND_PREV 1 -> 0 B c0 mb0
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.WAIT_RECV_PREV 0 -> 1 F c0 mb3
+  Compute Task:
+    F mb3 chunk0  start200 end220
+  Post Events:
+    CommEvent.POST_SEND_NEXT 1 -> 2 F c0 mb3
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 2 -> 1 B c0 mb1
+    CommEvent.WAIT_RECV_NEXT 2 -> 1 B c0 mb1
+  Compute Task:
+    B mb1 chunk0  start220 end260
+  Post Events:
+    CommEvent.POST_SEND_PREV 1 -> 0 B c0 mb1
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 0 -> 1 F c0 mb4
+    CommEvent.WAIT_RECV_PREV 0 -> 1 F c0 mb4
+  Compute Task:
+    F mb4 chunk0  start260 end280
+  Post Events:
+    CommEvent.POST_SEND_NEXT 1 -> 2 F c0 mb4
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 2 -> 1 B c0 mb2
+    CommEvent.WAIT_RECV_NEXT 2 -> 1 B c0 mb2
+  Compute Task:
+    B mb2 chunk0  start280 end320
+  Post Events:
+    CommEvent.POST_SEND_PREV 1 -> 0 B c0 mb2
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 0 -> 1 F c0 mb5
+    CommEvent.WAIT_RECV_PREV 0 -> 1 F c0 mb5
+  Compute Task:
+    F mb5 chunk0  start320 end340
+  Post Events:
+    CommEvent.POST_SEND_NEXT 1 -> 2 F c0 mb5
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 2 -> 1 B c0 mb3
+    CommEvent.WAIT_RECV_NEXT 2 -> 1 B c0 mb3
+  Compute Task:
+    B mb3 chunk0  start340 end380
+  Post Events:
+    CommEvent.POST_SEND_PREV 1 -> 0 B c0 mb3
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 0 -> 1 F c0 mb6
+    CommEvent.WAIT_RECV_PREV 0 -> 1 F c0 mb6
+  Compute Task:
+    F mb6 chunk0  start380 end400
+  Post Events:
+    CommEvent.POST_SEND_NEXT 1 -> 2 F c0 mb6
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 2 -> 1 B c0 mb4
+    CommEvent.WAIT_RECV_NEXT 2 -> 1 B c0 mb4
+  Compute Task:
+    B mb4 chunk0  start400 end440
+  Post Events:
+    CommEvent.POST_SEND_PREV 1 -> 0 B c0 mb4
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 0 -> 1 F c0 mb7
+    CommEvent.WAIT_RECV_PREV 0 -> 1 F c0 mb7
+  Compute Task:
+    F mb7 chunk0  start440 end460
+  Post Events:
+    CommEvent.POST_SEND_NEXT 1 -> 2 F c0 mb7
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 2 -> 1 B c0 mb5
+    CommEvent.WAIT_RECV_NEXT 2 -> 1 B c0 mb5
+  Compute Task:
+    B mb5 chunk0  start460 end500
+  Post Events:
+    CommEvent.POST_SEND_PREV 1 -> 0 B c0 mb5
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 2 -> 1 B c0 mb6
+    CommEvent.WAIT_RECV_NEXT 2 -> 1 B c0 mb6
+  Compute Task:
+    B mb6 chunk0  start520 end560
+  Post Events:
+    CommEvent.POST_SEND_PREV 1 -> 0 B c0 mb6
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 2 -> 1 B c0 mb7
+    CommEvent.WAIT_RECV_NEXT 2 -> 1 B c0 mb7
+  Compute Task:
+    B mb7 chunk0  start580 end620
+  Post Events:
+    CommEvent.POST_SEND_PREV 1 -> 0 B c0 mb7
+========================================================================================================================
+
+
+Device 2:
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 1 -> 2 F c0 mb0
+    CommEvent.WAIT_RECV_PREV 1 -> 2 F c0 mb0
+  Compute Task:
+    F mb0 chunk0  start40 end60
+  Post Events:
+    CommEvent.POST_SEND_NEXT 2 -> 3 F c0 mb0
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 1 -> 2 F c0 mb1
+    CommEvent.POST_RECV_PREV 1 -> 2 F c0 mb2
+    CommEvent.WAIT_RECV_PREV 1 -> 2 F c0 mb1
+  Compute Task:
+    F mb1 chunk0  start60 end80
+  Post Events:
+    CommEvent.POST_SEND_NEXT 2 -> 3 F c0 mb1
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 3 -> 2 B c0 mb0
+    CommEvent.WAIT_RECV_NEXT 3 -> 2 B c0 mb0
+  Compute Task:
+    B mb0 chunk0  start120 end160
+  Post Events:
+    CommEvent.POST_SEND_PREV 2 -> 1 B c0 mb0
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.WAIT_RECV_PREV 1 -> 2 F c0 mb2
+  Compute Task:
+    F mb2 chunk0  start160 end180
+  Post Events:
+    CommEvent.POST_SEND_NEXT 2 -> 3 F c0 mb2
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 3 -> 2 B c0 mb1
+    CommEvent.WAIT_RECV_NEXT 3 -> 2 B c0 mb1
+  Compute Task:
+    B mb1 chunk0  start180 end220
+  Post Events:
+    CommEvent.POST_SEND_PREV 2 -> 1 B c0 mb1
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 1 -> 2 F c0 mb3
+    CommEvent.WAIT_RECV_PREV 1 -> 2 F c0 mb3
+  Compute Task:
+    F mb3 chunk0  start220 end240
+  Post Events:
+    CommEvent.POST_SEND_NEXT 2 -> 3 F c0 mb3
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 3 -> 2 B c0 mb2
+    CommEvent.WAIT_RECV_NEXT 3 -> 2 B c0 mb2
+  Compute Task:
+    B mb2 chunk0  start240 end280
+  Post Events:
+    CommEvent.POST_SEND_PREV 2 -> 1 B c0 mb2
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 1 -> 2 F c0 mb4
+    CommEvent.WAIT_RECV_PREV 1 -> 2 F c0 mb4
+  Compute Task:
+    F mb4 chunk0  start280 end300
+  Post Events:
+    CommEvent.POST_SEND_NEXT 2 -> 3 F c0 mb4
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 3 -> 2 B c0 mb3
+    CommEvent.WAIT_RECV_NEXT 3 -> 2 B c0 mb3
+  Compute Task:
+    B mb3 chunk0  start300 end340
+  Post Events:
+    CommEvent.POST_SEND_PREV 2 -> 1 B c0 mb3
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 1 -> 2 F c0 mb5
+    CommEvent.WAIT_RECV_PREV 1 -> 2 F c0 mb5
+  Compute Task:
+    F mb5 chunk0  start340 end360
+  Post Events:
+    CommEvent.POST_SEND_NEXT 2 -> 3 F c0 mb5
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 3 -> 2 B c0 mb4
+    CommEvent.WAIT_RECV_NEXT 3 -> 2 B c0 mb4
+  Compute Task:
+    B mb4 chunk0  start360 end400
+  Post Events:
+    CommEvent.POST_SEND_PREV 2 -> 1 B c0 mb4
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 1 -> 2 F c0 mb6
+    CommEvent.WAIT_RECV_PREV 1 -> 2 F c0 mb6
+  Compute Task:
+    F mb6 chunk0  start400 end420
+  Post Events:
+    CommEvent.POST_SEND_NEXT 2 -> 3 F c0 mb6
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 3 -> 2 B c0 mb5
+    CommEvent.WAIT_RECV_NEXT 3 -> 2 B c0 mb5
+  Compute Task:
+    B mb5 chunk0  start420 end460
+  Post Events:
+    CommEvent.POST_SEND_PREV 2 -> 1 B c0 mb5
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 1 -> 2 F c0 mb7
+    CommEvent.WAIT_RECV_PREV 1 -> 2 F c0 mb7
+  Compute Task:
+    F mb7 chunk0  start460 end480
+  Post Events:
+    CommEvent.POST_SEND_NEXT 2 -> 3 F c0 mb7
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 3 -> 2 B c0 mb6
+    CommEvent.WAIT_RECV_NEXT 3 -> 2 B c0 mb6
+  Compute Task:
+    B mb6 chunk0  start480 end520
+  Post Events:
+    CommEvent.POST_SEND_PREV 2 -> 1 B c0 mb6
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_NEXT 3 -> 2 B c0 mb7
+    CommEvent.WAIT_RECV_NEXT 3 -> 2 B c0 mb7
+  Compute Task:
+    B mb7 chunk0  start540 end580
+  Post Events:
+    CommEvent.POST_SEND_PREV 2 -> 1 B c0 mb7
+========================================================================================================================
+
+
+Device 3:
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 2 -> 3 F c0 mb0
+    CommEvent.WAIT_RECV_PREV 2 -> 3 F c0 mb0
+  Compute Task:
+    F mb0 chunk0  start60 end80
+  Post Events:
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 2 -> 3 F c0 mb1
+  Compute Task:
+    B mb0 chunk0  start80 end120
+  Post Events:
+    CommEvent.POST_SEND_PREV 3 -> 2 B c0 mb0
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.WAIT_RECV_PREV 2 -> 3 F c0 mb1
+  Compute Task:
+    F mb1 chunk0  start120 end140
+  Post Events:
+------------------------------------------------------------
+  Prev Events:
+  Compute Task:
+    B mb1 chunk0  start140 end180
+  Post Events:
+    CommEvent.POST_SEND_PREV 3 -> 2 B c0 mb1
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 2 -> 3 F c0 mb2
+    CommEvent.WAIT_RECV_PREV 2 -> 3 F c0 mb2
+  Compute Task:
+    F mb2 chunk0  start180 end200
+  Post Events:
+------------------------------------------------------------
+  Prev Events:
+  Compute Task:
+    B mb2 chunk0  start200 end240
+  Post Events:
+    CommEvent.POST_SEND_PREV 3 -> 2 B c0 mb2
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 2 -> 3 F c0 mb3
+    CommEvent.WAIT_RECV_PREV 2 -> 3 F c0 mb3
+  Compute Task:
+    F mb3 chunk0  start240 end260
+  Post Events:
+------------------------------------------------------------
+  Prev Events:
+  Compute Task:
+    B mb3 chunk0  start260 end300
+  Post Events:
+    CommEvent.POST_SEND_PREV 3 -> 2 B c0 mb3
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 2 -> 3 F c0 mb4
+    CommEvent.WAIT_RECV_PREV 2 -> 3 F c0 mb4
+  Compute Task:
+    F mb4 chunk0  start300 end320
+  Post Events:
+------------------------------------------------------------
+  Prev Events:
+  Compute Task:
+    B mb4 chunk0  start320 end360
+  Post Events:
+    CommEvent.POST_SEND_PREV 3 -> 2 B c0 mb4
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 2 -> 3 F c0 mb5
+    CommEvent.WAIT_RECV_PREV 2 -> 3 F c0 mb5
+  Compute Task:
+    F mb5 chunk0  start360 end380
+  Post Events:
+------------------------------------------------------------
+  Prev Events:
+  Compute Task:
+    B mb5 chunk0  start380 end420
+  Post Events:
+    CommEvent.POST_SEND_PREV 3 -> 2 B c0 mb5
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 2 -> 3 F c0 mb6
+    CommEvent.WAIT_RECV_PREV 2 -> 3 F c0 mb6
+  Compute Task:
+    F mb6 chunk0  start420 end440
+  Post Events:
+------------------------------------------------------------
+  Prev Events:
+  Compute Task:
+    B mb6 chunk0  start440 end480
+  Post Events:
+    CommEvent.POST_SEND_PREV 3 -> 2 B c0 mb6
+------------------------------------------------------------
+  Prev Events:
+    CommEvent.POST_RECV_PREV 2 -> 3 F c0 mb7
+    CommEvent.WAIT_RECV_PREV 2 -> 3 F c0 mb7
+  Compute Task:
+    F mb7 chunk0  start480 end500
+  Post Events:
+------------------------------------------------------------
+  Prev Events:
+  Compute Task:
+    B mb7 chunk0  start500 end540
+  Post Events:
+    CommEvent.POST_SEND_PREV 3 -> 2 B c0 mb7
+========================================================================================================================

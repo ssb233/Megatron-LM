@@ -1,0 +1,1038 @@
+{
+  "samples": [
+    {
+      "iteration": 0,
+      "dependency_id": 0,
+      "completion_to_target_submit_us": 285.36
+    },
+    {
+      "iteration": 0,
+      "dependency_id": 1,
+      "completion_to_target_submit_us": 1053.465,
+      "signal_send_to_recv_us": 237.031,
+      "gate_wait_us": 4178670.959,
+      "signal_recv_to_target_submit_us": 637.393
+    },
+    {
+      "iteration": 0,
+      "dependency_id": 2,
+      "completion_to_target_submit_us": 346.651
+    },
+    {
+      "iteration": 0,
+      "dependency_id": 3,
+      "completion_to_target_submit_us": 639.149,
+      "signal_send_to_recv_us": 166.049,
+      "gate_wait_us": 7331.696,
+      "signal_recv_to_target_submit_us": 384.132
+    },
+    {
+      "iteration": 0,
+      "dependency_id": 4,
+      "completion_to_target_submit_us": 256.833
+    },
+    {
+      "iteration": 0,
+      "dependency_id": 5,
+      "completion_to_target_submit_us": 757.947,
+      "signal_send_to_recv_us": 187.659,
+      "gate_wait_us": 15743.831,
+      "signal_recv_to_target_submit_us": 485.837
+    },
+    {
+      "iteration": 0,
+      "dependency_id": 6,
+      "completion_to_target_submit_us": 4186840.34,
+      "signal_send_to_recv_us": 4186274.089,
+      "gate_wait_us": 278.637,
+      "signal_recv_to_target_submit_us": 460.821
+    },
+    {
+      "iteration": 0,
+      "dependency_id": 7,
+      "completion_to_target_submit_us": 348.052
+    },
+    {
+      "iteration": 0,
+      "dependency_id": 8,
+      "completion_to_target_submit_us": 20593.56,
+      "signal_send_to_recv_us": 19898.484,
+      "gate_wait_us": 247.298,
+      "signal_recv_to_target_submit_us": 483.556
+    },
+    {
+      "iteration": 0,
+      "dependency_id": 9,
+      "completion_to_target_submit_us": 200.112
+    },
+    {
+      "iteration": 0,
+      "dependency_id": 10,
+      "completion_to_target_submit_us": 33358.274,
+      "signal_send_to_recv_us": 32783.495,
+      "gate_wait_us": 294.713,
+      "signal_recv_to_target_submit_us": 486.213
+    },
+    {
+      "iteration": 0,
+      "dependency_id": 11,
+      "completion_to_target_submit_us": 275.46
+    },
+    {
+      "iteration": 0,
+      "dependency_id": 12,
+      "completion_to_target_submit_us": 508301.425,
+      "signal_send_to_recv_us": 508002.719,
+      "gate_wait_us": 211.551,
+      "signal_recv_to_target_submit_us": 210.803
+    },
+    {
+      "iteration": 0,
+      "dependency_id": 13,
+      "completion_to_target_submit_us": 315.267
+    },
+    {
+      "iteration": 1,
+      "dependency_id": 0,
+      "completion_to_target_submit_us": 296.303
+    },
+    {
+      "iteration": 1,
+      "dependency_id": 1,
+      "completion_to_target_submit_us": 478.881,
+      "signal_send_to_recv_us": 155.979,
+      "gate_wait_us": 677.437,
+      "signal_recv_to_target_submit_us": 222.527
+    },
+    {
+      "iteration": 1,
+      "dependency_id": 2,
+      "completion_to_target_submit_us": 265.284
+    },
+    {
+      "iteration": 1,
+      "dependency_id": 3,
+      "completion_to_target_submit_us": 407.617,
+      "signal_send_to_recv_us": 136.069,
+      "gate_wait_us": 6090.745,
+      "signal_recv_to_target_submit_us": 203.251
+    },
+    {
+      "iteration": 1,
+      "dependency_id": 4,
+      "completion_to_target_submit_us": 298.909
+    },
+    {
+      "iteration": 1,
+      "dependency_id": 5,
+      "completion_to_target_submit_us": 379.754,
+      "signal_send_to_recv_us": 113.553,
+      "gate_wait_us": 11578.266,
+      "signal_recv_to_target_submit_us": 202.164
+    },
+    {
+      "iteration": 1,
+      "dependency_id": 6,
+      "completion_to_target_submit_us": 592.581,
+      "signal_send_to_recv_us": 175.896,
+      "gate_wait_us": 42962.469,
+      "signal_recv_to_target_submit_us": 349.616
+    },
+    {
+      "iteration": 1,
+      "dependency_id": 7,
+      "completion_to_target_submit_us": 203.882
+    },
+    {
+      "iteration": 1,
+      "dependency_id": 8,
+      "completion_to_target_submit_us": 5825.844,
+      "signal_send_to_recv_us": 5497.326,
+      "gate_wait_us": 193.336,
+      "signal_recv_to_target_submit_us": 237.433
+    },
+    {
+      "iteration": 1,
+      "dependency_id": 9,
+      "completion_to_target_submit_us": 204.377
+    },
+    {
+      "iteration": 1,
+      "dependency_id": 10,
+      "completion_to_target_submit_us": 13817.197,
+      "signal_send_to_recv_us": 13468.668,
+      "gate_wait_us": 150.717,
+      "signal_recv_to_target_submit_us": 256.376
+    },
+    {
+      "iteration": 1,
+      "dependency_id": 11,
+      "completion_to_target_submit_us": 212.129
+    },
+    {
+      "iteration": 1,
+      "dependency_id": 12,
+      "completion_to_target_submit_us": 29522.99,
+      "signal_send_to_recv_us": 29174.326,
+      "gate_wait_us": 185.003,
+      "signal_recv_to_target_submit_us": 243.649
+    },
+    {
+      "iteration": 1,
+      "dependency_id": 13,
+      "completion_to_target_submit_us": 321.25
+    },
+    {
+      "iteration": 2,
+      "dependency_id": 0,
+      "completion_to_target_submit_us": 247.148
+    },
+    {
+      "iteration": 2,
+      "dependency_id": 1,
+      "completion_to_target_submit_us": 6133.902,
+      "signal_send_to_recv_us": 5580.577,
+      "gate_wait_us": 176.377,
+      "signal_recv_to_target_submit_us": 168.441
+    },
+    {
+      "iteration": 2,
+      "dependency_id": 2,
+      "completion_to_target_submit_us": 254.018
+    },
+    {
+      "iteration": 2,
+      "dependency_id": 3,
+      "completion_to_target_submit_us": 450.749,
+      "signal_send_to_recv_us": 147.321,
+      "gate_wait_us": 5168.813,
+      "signal_recv_to_target_submit_us": 220.277
+    },
+    {
+      "iteration": 2,
+      "dependency_id": 4,
+      "completion_to_target_submit_us": 250.098
+    },
+    {
+      "iteration": 2,
+      "dependency_id": 5,
+      "completion_to_target_submit_us": 646.71,
+      "signal_send_to_recv_us": 159.055,
+      "gate_wait_us": 13714.681,
+      "signal_recv_to_target_submit_us": 294.886
+    },
+    {
+      "iteration": 2,
+      "dependency_id": 6,
+      "completion_to_target_submit_us": 945.571,
+      "signal_send_to_recv_us": 275.432,
+      "gate_wait_us": 2830.352,
+      "signal_recv_to_target_submit_us": 251.008
+    },
+    {
+      "iteration": 2,
+      "dependency_id": 7,
+      "completion_to_target_submit_us": 187.552
+    },
+    {
+      "iteration": 2,
+      "dependency_id": 8,
+      "completion_to_target_submit_us": 13966.431,
+      "signal_send_to_recv_us": 13543.482,
+      "gate_wait_us": 179.529,
+      "signal_recv_to_target_submit_us": 243.863
+    },
+    {
+      "iteration": 2,
+      "dependency_id": 9,
+      "completion_to_target_submit_us": 179.655
+    },
+    {
+      "iteration": 2,
+      "dependency_id": 10,
+      "completion_to_target_submit_us": 22586.746,
+      "signal_send_to_recv_us": 22265.719,
+      "gate_wait_us": 183.743,
+      "signal_recv_to_target_submit_us": 245.657
+    },
+    {
+      "iteration": 2,
+      "dependency_id": 11,
+      "completion_to_target_submit_us": 184.723
+    },
+    {
+      "iteration": 2,
+      "dependency_id": 12,
+      "completion_to_target_submit_us": 30365.665,
+      "signal_send_to_recv_us": 30038.803,
+      "gate_wait_us": 197.325,
+      "signal_recv_to_target_submit_us": 249.875
+    },
+    {
+      "iteration": 2,
+      "dependency_id": 13,
+      "completion_to_target_submit_us": 197.944
+    },
+    {
+      "iteration": 3,
+      "dependency_id": 0,
+      "completion_to_target_submit_us": 244.437
+    },
+    {
+      "iteration": 3,
+      "dependency_id": 1,
+      "completion_to_target_submit_us": 6890.73,
+      "signal_send_to_recv_us": 6487.39,
+      "gate_wait_us": 160.345,
+      "signal_recv_to_target_submit_us": 210.996
+    },
+    {
+      "iteration": 3,
+      "dependency_id": 2,
+      "completion_to_target_submit_us": 247.657
+    },
+    {
+      "iteration": 3,
+      "dependency_id": 3,
+      "completion_to_target_submit_us": 474.822,
+      "signal_send_to_recv_us": 149.06,
+      "gate_wait_us": 3521.954,
+      "signal_recv_to_target_submit_us": 246.186
+    },
+    {
+      "iteration": 3,
+      "dependency_id": 4,
+      "completion_to_target_submit_us": 281.878
+    },
+    {
+      "iteration": 3,
+      "dependency_id": 5,
+      "completion_to_target_submit_us": 766.861,
+      "signal_send_to_recv_us": 251.474,
+      "gate_wait_us": 9107.83,
+      "signal_recv_to_target_submit_us": 325.662
+    },
+    {
+      "iteration": 3,
+      "dependency_id": 6,
+      "completion_to_target_submit_us": 906.392,
+      "signal_send_to_recv_us": 265.673,
+      "gate_wait_us": 8951.434,
+      "signal_recv_to_target_submit_us": 229.104
+    },
+    {
+      "iteration": 3,
+      "dependency_id": 7,
+      "completion_to_target_submit_us": 196.55
+    },
+    {
+      "iteration": 3,
+      "dependency_id": 8,
+      "completion_to_target_submit_us": 11661.134,
+      "signal_send_to_recv_us": 11206.574,
+      "gate_wait_us": 173.396,
+      "signal_recv_to_target_submit_us": 271.016
+    },
+    {
+      "iteration": 3,
+      "dependency_id": 9,
+      "completion_to_target_submit_us": 198.554
+    },
+    {
+      "iteration": 3,
+      "dependency_id": 10,
+      "completion_to_target_submit_us": 17777.842,
+      "signal_send_to_recv_us": 17279.346,
+      "gate_wait_us": 181.184,
+      "signal_recv_to_target_submit_us": 299.779
+    },
+    {
+      "iteration": 3,
+      "dependency_id": 11,
+      "completion_to_target_submit_us": 203.743
+    },
+    {
+      "iteration": 3,
+      "dependency_id": 12,
+      "completion_to_target_submit_us": 31129.754,
+      "signal_send_to_recv_us": 30775.955,
+      "gate_wait_us": 162.687,
+      "signal_recv_to_target_submit_us": 274.6
+    },
+    {
+      "iteration": 3,
+      "dependency_id": 13,
+      "completion_to_target_submit_us": 222.824
+    },
+    {
+      "iteration": 4,
+      "dependency_id": 0,
+      "completion_to_target_submit_us": 243.938
+    },
+    {
+      "iteration": 4,
+      "dependency_id": 1,
+      "completion_to_target_submit_us": 3485.592,
+      "signal_send_to_recv_us": 3031.766,
+      "gate_wait_us": 130.19,
+      "signal_recv_to_target_submit_us": 251.644
+    },
+    {
+      "iteration": 4,
+      "dependency_id": 2,
+      "completion_to_target_submit_us": 266.881
+    },
+    {
+      "iteration": 4,
+      "dependency_id": 3,
+      "completion_to_target_submit_us": 705.737,
+      "signal_send_to_recv_us": 250.629,
+      "gate_wait_us": 16876.231,
+      "signal_recv_to_target_submit_us": 266.641
+    },
+    {
+      "iteration": 4,
+      "dependency_id": 4,
+      "completion_to_target_submit_us": 308.589
+    },
+    {
+      "iteration": 4,
+      "dependency_id": 5,
+      "completion_to_target_submit_us": 555.895,
+      "signal_send_to_recv_us": 168.992,
+      "gate_wait_us": 20646.239,
+      "signal_recv_to_target_submit_us": 303.906
+    },
+    {
+      "iteration": 4,
+      "dependency_id": 6,
+      "completion_to_target_submit_us": 3217.344,
+      "signal_send_to_recv_us": 2491.045,
+      "gate_wait_us": 214.937,
+      "signal_recv_to_target_submit_us": 308.564
+    },
+    {
+      "iteration": 4,
+      "dependency_id": 7,
+      "completion_to_target_submit_us": 192.627
+    },
+    {
+      "iteration": 4,
+      "dependency_id": 8,
+      "completion_to_target_submit_us": 25556.972,
+      "signal_send_to_recv_us": 25063.976,
+      "gate_wait_us": 224.837,
+      "signal_recv_to_target_submit_us": 324.165
+    },
+    {
+      "iteration": 4,
+      "dependency_id": 9,
+      "completion_to_target_submit_us": 199.516
+    },
+    {
+      "iteration": 4,
+      "dependency_id": 10,
+      "completion_to_target_submit_us": 30368.609,
+      "signal_send_to_recv_us": 29911.222,
+      "gate_wait_us": 252.511,
+      "signal_recv_to_target_submit_us": 377.251
+    },
+    {
+      "iteration": 4,
+      "dependency_id": 11,
+      "completion_to_target_submit_us": 211.844
+    },
+    {
+      "iteration": 4,
+      "dependency_id": 12,
+      "completion_to_target_submit_us": 46958.185,
+      "signal_send_to_recv_us": 46478.874,
+      "gate_wait_us": 290.48,
+      "signal_recv_to_target_submit_us": 393.958
+    },
+    {
+      "iteration": 4,
+      "dependency_id": 13,
+      "completion_to_target_submit_us": 409.136
+    },
+    {
+      "iteration": 5,
+      "dependency_id": 0,
+      "completion_to_target_submit_us": 242.396
+    },
+    {
+      "iteration": 5,
+      "dependency_id": 1,
+      "completion_to_target_submit_us": 4311.821,
+      "signal_send_to_recv_us": 3936.028,
+      "gate_wait_us": 159.406,
+      "signal_recv_to_target_submit_us": 187.586
+    },
+    {
+      "iteration": 5,
+      "dependency_id": 2,
+      "completion_to_target_submit_us": 284.029
+    },
+    {
+      "iteration": 5,
+      "dependency_id": 3,
+      "completion_to_target_submit_us": 640.975,
+      "signal_send_to_recv_us": 176.986,
+      "gate_wait_us": 20635.67,
+      "signal_recv_to_target_submit_us": 381.909
+    },
+    {
+      "iteration": 5,
+      "dependency_id": 4,
+      "completion_to_target_submit_us": 321.89
+    },
+    {
+      "iteration": 5,
+      "dependency_id": 5,
+      "completion_to_target_submit_us": 1795.442,
+      "signal_send_to_recv_us": 204.412,
+      "gate_wait_us": 19705.014,
+      "signal_recv_to_target_submit_us": 401.06
+    },
+    {
+      "iteration": 5,
+      "dependency_id": 6,
+      "completion_to_target_submit_us": 2662.521,
+      "signal_send_to_recv_us": 1958.39,
+      "gate_wait_us": 252.394,
+      "signal_recv_to_target_submit_us": 362.366
+    },
+    {
+      "iteration": 5,
+      "dependency_id": 7,
+      "completion_to_target_submit_us": 211.578
+    },
+    {
+      "iteration": 5,
+      "dependency_id": 8,
+      "completion_to_target_submit_us": 26893.249,
+      "signal_send_to_recv_us": 26417.831,
+      "gate_wait_us": 245.748,
+      "signal_recv_to_target_submit_us": 396.104
+    },
+    {
+      "iteration": 5,
+      "dependency_id": 9,
+      "completion_to_target_submit_us": 254.238
+    },
+    {
+      "iteration": 5,
+      "dependency_id": 10,
+      "completion_to_target_submit_us": 29335.207,
+      "signal_send_to_recv_us": 28873.024,
+      "gate_wait_us": 349.128,
+      "signal_recv_to_target_submit_us": 379.059
+    },
+    {
+      "iteration": 5,
+      "dependency_id": 11,
+      "completion_to_target_submit_us": 396.229
+    },
+    {
+      "iteration": 5,
+      "dependency_id": 12,
+      "completion_to_target_submit_us": 31710.502,
+      "signal_send_to_recv_us": 31169.843,
+      "gate_wait_us": 218.356,
+      "signal_recv_to_target_submit_us": 341.321
+    },
+    {
+      "iteration": 5,
+      "dependency_id": 13,
+      "completion_to_target_submit_us": 274.198
+    },
+    {
+      "iteration": 6,
+      "dependency_id": 0,
+      "completion_to_target_submit_us": 249.035
+    },
+    {
+      "iteration": 6,
+      "dependency_id": 1,
+      "completion_to_target_submit_us": 611.093,
+      "signal_send_to_recv_us": 223.265,
+      "gate_wait_us": 5857.001,
+      "signal_recv_to_target_submit_us": 194.962
+    },
+    {
+      "iteration": 6,
+      "dependency_id": 2,
+      "completion_to_target_submit_us": 266.562
+    },
+    {
+      "iteration": 6,
+      "dependency_id": 3,
+      "completion_to_target_submit_us": 650.413,
+      "signal_send_to_recv_us": 225.973,
+      "gate_wait_us": 22697.365,
+      "signal_recv_to_target_submit_us": 240.702
+    },
+    {
+      "iteration": 6,
+      "dependency_id": 4,
+      "completion_to_target_submit_us": 273.95
+    },
+    {
+      "iteration": 6,
+      "dependency_id": 5,
+      "completion_to_target_submit_us": 774.465,
+      "signal_send_to_recv_us": 245.474,
+      "gate_wait_us": 19472.925,
+      "signal_recv_to_target_submit_us": 346.498
+    },
+    {
+      "iteration": 6,
+      "dependency_id": 6,
+      "completion_to_target_submit_us": 11559.156,
+      "signal_send_to_recv_us": 10848.679,
+      "gate_wait_us": 256.789,
+      "signal_recv_to_target_submit_us": 365.197
+    },
+    {
+      "iteration": 6,
+      "dependency_id": 7,
+      "completion_to_target_submit_us": 183.347
+    },
+    {
+      "iteration": 6,
+      "dependency_id": 8,
+      "completion_to_target_submit_us": 29994.151,
+      "signal_send_to_recv_us": 29407.273,
+      "gate_wait_us": 217.798,
+      "signal_recv_to_target_submit_us": 400.796
+    },
+    {
+      "iteration": 6,
+      "dependency_id": 9,
+      "completion_to_target_submit_us": 199.906
+    },
+    {
+      "iteration": 6,
+      "dependency_id": 10,
+      "completion_to_target_submit_us": 28163.389,
+      "signal_send_to_recv_us": 27740.548,
+      "gate_wait_us": 199.028,
+      "signal_recv_to_target_submit_us": 341.852
+    },
+    {
+      "iteration": 6,
+      "dependency_id": 11,
+      "completion_to_target_submit_us": 196.866
+    },
+    {
+      "iteration": 6,
+      "dependency_id": 12,
+      "completion_to_target_submit_us": 46896.679,
+      "signal_send_to_recv_us": 46431.956,
+      "gate_wait_us": 244.148,
+      "signal_recv_to_target_submit_us": 377.218
+    },
+    {
+      "iteration": 6,
+      "dependency_id": 13,
+      "completion_to_target_submit_us": 321.217
+    },
+    {
+      "iteration": 7,
+      "dependency_id": 0,
+      "completion_to_target_submit_us": 248.058
+    },
+    {
+      "iteration": 7,
+      "dependency_id": 1,
+      "completion_to_target_submit_us": 3390.496,
+      "signal_send_to_recv_us": 2899.138,
+      "gate_wait_us": 196.016,
+      "signal_recv_to_target_submit_us": 296.929
+    },
+    {
+      "iteration": 7,
+      "dependency_id": 2,
+      "completion_to_target_submit_us": 244.151
+    },
+    {
+      "iteration": 7,
+      "dependency_id": 3,
+      "completion_to_target_submit_us": 810.663,
+      "signal_send_to_recv_us": 251.38,
+      "gate_wait_us": 18055.688,
+      "signal_recv_to_target_submit_us": 360.043
+    },
+    {
+      "iteration": 7,
+      "dependency_id": 4,
+      "completion_to_target_submit_us": 269.138
+    },
+    {
+      "iteration": 7,
+      "dependency_id": 5,
+      "completion_to_target_submit_us": 706.194,
+      "signal_send_to_recv_us": 222.158,
+      "gate_wait_us": 18127.245,
+      "signal_recv_to_target_submit_us": 294.627
+    },
+    {
+      "iteration": 7,
+      "dependency_id": 6,
+      "completion_to_target_submit_us": 3102.787,
+      "signal_send_to_recv_us": 2630.802,
+      "gate_wait_us": 202.689,
+      "signal_recv_to_target_submit_us": 282.484
+    },
+    {
+      "iteration": 7,
+      "dependency_id": 7,
+      "completion_to_target_submit_us": 441.824
+    },
+    {
+      "iteration": 7,
+      "dependency_id": 8,
+      "completion_to_target_submit_us": 25813.712,
+      "signal_send_to_recv_us": 25401.546,
+      "gate_wait_us": 198.795,
+      "signal_recv_to_target_submit_us": 336.109
+    },
+    {
+      "iteration": 7,
+      "dependency_id": 9,
+      "completion_to_target_submit_us": 193.324
+    },
+    {
+      "iteration": 7,
+      "dependency_id": 10,
+      "completion_to_target_submit_us": 27020.197,
+      "signal_send_to_recv_us": 26348.263,
+      "gate_wait_us": 231.722,
+      "signal_recv_to_target_submit_us": 479.526
+    },
+    {
+      "iteration": 7,
+      "dependency_id": 11,
+      "completion_to_target_submit_us": 205.244
+    },
+    {
+      "iteration": 7,
+      "dependency_id": 12,
+      "completion_to_target_submit_us": 48341.656,
+      "signal_send_to_recv_us": 47911.03,
+      "gate_wait_us": 227.744,
+      "signal_recv_to_target_submit_us": 345.218
+    },
+    {
+      "iteration": 7,
+      "dependency_id": 13,
+      "completion_to_target_submit_us": 220.604
+    },
+    {
+      "iteration": 8,
+      "dependency_id": 0,
+      "completion_to_target_submit_us": 242.029
+    },
+    {
+      "iteration": 8,
+      "dependency_id": 1,
+      "completion_to_target_submit_us": 2814.323,
+      "signal_send_to_recv_us": 2365.962,
+      "gate_wait_us": 151.038,
+      "signal_recv_to_target_submit_us": 261.456
+    },
+    {
+      "iteration": 8,
+      "dependency_id": 2,
+      "completion_to_target_submit_us": 247.687
+    },
+    {
+      "iteration": 8,
+      "dependency_id": 3,
+      "completion_to_target_submit_us": 731.422,
+      "signal_send_to_recv_us": 259.878,
+      "gate_wait_us": 20628.26,
+      "signal_recv_to_target_submit_us": 286.939
+    },
+    {
+      "iteration": 8,
+      "dependency_id": 4,
+      "completion_to_target_submit_us": 447.655
+    },
+    {
+      "iteration": 8,
+      "dependency_id": 5,
+      "completion_to_target_submit_us": 947.259,
+      "signal_send_to_recv_us": 279.931,
+      "gate_wait_us": 18882.357,
+      "signal_recv_to_target_submit_us": 479.551
+    },
+    {
+      "iteration": 8,
+      "dependency_id": 6,
+      "completion_to_target_submit_us": 5026.203,
+      "signal_send_to_recv_us": 4282.771,
+      "gate_wait_us": 259.557,
+      "signal_recv_to_target_submit_us": 402.412
+    },
+    {
+      "iteration": 8,
+      "dependency_id": 7,
+      "completion_to_target_submit_us": 189.914
+    },
+    {
+      "iteration": 8,
+      "dependency_id": 8,
+      "completion_to_target_submit_us": 30045.335,
+      "signal_send_to_recv_us": 29578.783,
+      "gate_wait_us": 222.01,
+      "signal_recv_to_target_submit_us": 389.097
+    },
+    {
+      "iteration": 8,
+      "dependency_id": 9,
+      "completion_to_target_submit_us": 189.899
+    },
+    {
+      "iteration": 8,
+      "dependency_id": 10,
+      "completion_to_target_submit_us": 30335.798,
+      "signal_send_to_recv_us": 29693.874,
+      "gate_wait_us": 233.004,
+      "signal_recv_to_target_submit_us": 458.658
+    },
+    {
+      "iteration": 8,
+      "dependency_id": 11,
+      "completion_to_target_submit_us": 353.349
+    },
+    {
+      "iteration": 8,
+      "dependency_id": 12,
+      "completion_to_target_submit_us": 49748.064,
+      "signal_send_to_recv_us": 49114.724,
+      "gate_wait_us": 271.772,
+      "signal_recv_to_target_submit_us": 457.569
+    },
+    {
+      "iteration": 8,
+      "dependency_id": 13,
+      "completion_to_target_submit_us": 376.741
+    },
+    {
+      "iteration": 9,
+      "dependency_id": 0,
+      "completion_to_target_submit_us": 243.002
+    },
+    {
+      "iteration": 9,
+      "dependency_id": 1,
+      "completion_to_target_submit_us": 630.552,
+      "signal_send_to_recv_us": 251.031,
+      "gate_wait_us": 1786.303,
+      "signal_recv_to_target_submit_us": 200.82
+    },
+    {
+      "iteration": 9,
+      "dependency_id": 2,
+      "completion_to_target_submit_us": 277.504
+    },
+    {
+      "iteration": 9,
+      "dependency_id": 3,
+      "completion_to_target_submit_us": 707.717,
+      "signal_send_to_recv_us": 199.859,
+      "gate_wait_us": 26012.554,
+      "signal_recv_to_target_submit_us": 421.382
+    },
+    {
+      "iteration": 9,
+      "dependency_id": 4,
+      "completion_to_target_submit_us": 286.533
+    },
+    {
+      "iteration": 9,
+      "dependency_id": 5,
+      "completion_to_target_submit_us": 661.971,
+      "signal_send_to_recv_us": 210.834,
+      "gate_wait_us": 22327.985,
+      "signal_recv_to_target_submit_us": 377.637
+    },
+    {
+      "iteration": 9,
+      "dependency_id": 6,
+      "completion_to_target_submit_us": 7363.48,
+      "signal_send_to_recv_us": 6531.577,
+      "gate_wait_us": 282.868,
+      "signal_recv_to_target_submit_us": 498.548
+    },
+    {
+      "iteration": 9,
+      "dependency_id": 7,
+      "completion_to_target_submit_us": 182.429
+    },
+    {
+      "iteration": 9,
+      "dependency_id": 8,
+      "completion_to_target_submit_us": 33726.068,
+      "signal_send_to_recv_us": 33165.182,
+      "gate_wait_us": 273.611,
+      "signal_recv_to_target_submit_us": 485.881
+    },
+    {
+      "iteration": 9,
+      "dependency_id": 9,
+      "completion_to_target_submit_us": 259.019
+    },
+    {
+      "iteration": 9,
+      "dependency_id": 10,
+      "completion_to_target_submit_us": 32911.827,
+      "signal_send_to_recv_us": 32310.805,
+      "gate_wait_us": 295.9,
+      "signal_recv_to_target_submit_us": 523.48
+    },
+    {
+      "iteration": 9,
+      "dependency_id": 11,
+      "completion_to_target_submit_us": 225.807
+    },
+    {
+      "iteration": 9,
+      "dependency_id": 12,
+      "completion_to_target_submit_us": 51793.957,
+      "signal_send_to_recv_us": 51179.567,
+      "gate_wait_us": 231.43,
+      "signal_recv_to_target_submit_us": 430.948
+    },
+    {
+      "iteration": 9,
+      "dependency_id": 13,
+      "completion_to_target_submit_us": 240.908
+    },
+    {
+      "iteration": 10,
+      "dependency_id": 0,
+      "completion_to_target_submit_us": 244.694
+    },
+    {
+      "iteration": 10,
+      "dependency_id": 1,
+      "completion_to_target_submit_us": 2949.143,
+      "signal_send_to_recv_us": 2571.365,
+      "gate_wait_us": 186.846,
+      "signal_recv_to_target_submit_us": 194.441
+    },
+    {
+      "iteration": 10,
+      "dependency_id": 2,
+      "completion_to_target_submit_us": 290.692
+    },
+    {
+      "iteration": 10,
+      "dependency_id": 3,
+      "completion_to_target_submit_us": 806.082,
+      "signal_send_to_recv_us": 288.138,
+      "gate_wait_us": 19518.715,
+      "signal_recv_to_target_submit_us": 339.207
+    },
+    {
+      "iteration": 10,
+      "dependency_id": 4,
+      "completion_to_target_submit_us": 371.487
+    },
+    {
+      "iteration": 10,
+      "dependency_id": 5,
+      "completion_to_target_submit_us": 714.031,
+      "signal_send_to_recv_us": 216.46,
+      "gate_wait_us": 22090.837,
+      "signal_recv_to_target_submit_us": 418.867
+    },
+    {
+      "iteration": 10,
+      "dependency_id": 6,
+      "completion_to_target_submit_us": 5745.88,
+      "signal_send_to_recv_us": 5183.278,
+      "gate_wait_us": 218.667,
+      "signal_recv_to_target_submit_us": 382.444
+    },
+    {
+      "iteration": 10,
+      "dependency_id": 7,
+      "completion_to_target_submit_us": 189.576
+    },
+    {
+      "iteration": 10,
+      "dependency_id": 8,
+      "completion_to_target_submit_us": 28756.309,
+      "signal_send_to_recv_us": 28127.331,
+      "gate_wait_us": 261.395,
+      "signal_recv_to_target_submit_us": 462.94
+    },
+    {
+      "iteration": 10,
+      "dependency_id": 9,
+      "completion_to_target_submit_us": 192.404
+    },
+    {
+      "iteration": 10,
+      "dependency_id": 10,
+      "completion_to_target_submit_us": 31225.306,
+      "signal_send_to_recv_us": 30720.132,
+      "gate_wait_us": 275.942,
+      "signal_recv_to_target_submit_us": 432.928
+    },
+    {
+      "iteration": 10,
+      "dependency_id": 11,
+      "completion_to_target_submit_us": 567.505
+    },
+    {
+      "iteration": 10,
+      "dependency_id": 12,
+      "completion_to_target_submit_us": 49500.702,
+      "signal_send_to_recv_us": 49111.84,
+      "gate_wait_us": 164.804,
+      "signal_recv_to_target_submit_us": 211.641
+    },
+    {
+      "iteration": 10,
+      "dependency_id": 13,
+      "completion_to_target_submit_us": 276.775
+    }
+  ],
+  "completion_to_target_submit": {
+    "count": 154,
+    "min_us": 179.655,
+    "median_us": 444.7395,
+    "p95_us": 46896.679,
+    "max_us": 4186840.34,
+    "mean_us": 37471.424922077924
+  },
+  "signal_send_to_recv": {
+    "count": 77,
+    "min_us": 113.553,
+    "median_us": 5183.278,
+    "p95_us": 49114.724,
+    "max_us": 4186274.089,
+    "mean_us": 74172.22115584416
+  },
+  "gate_wait": {
+    "count": 77,
+    "min_us": 130.19,
+    "median_us": 261.395,
+    "p95_us": 22697.365,
+    "max_us": 4178670.959,
+    "mean_us": 59873.87346753247
+  },
+  "signal_recv_to_target_submit": {
+    "count": 77,
+    "min_us": 168.441,
+    "median_us": 339.207,
+    "p95_us": 486.213,
+    "max_us": 637.393,
+    "mean_us": 335.7098961038961
+  },
+  "clock": "time.perf_counter_ns; comparable across processes on one node"
+}

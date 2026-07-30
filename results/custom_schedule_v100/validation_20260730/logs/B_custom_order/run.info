@@ -1,0 +1,5 @@
+mode=B
+run_dir=/home/songxb26/mnist/crosspipi-magellan/runs/custom_schedule_v100/validation_20260730/B_custom_order
+order_file=/home/songxb26/mnist/crosspipi-magellan/tests/unit_tests/pipeline_parallel/fixtures/replay_order_pp4_n8_star.json
+dependency_file=/home/songxb26/mnist/crosspipi-magellan/tests/unit_tests/pipeline_parallel/fixtures/notification_deps_pp4_n8_star.json
+command_python=/home/songxb26/mnist/.venvs/crosspipi-magellan/bin/python

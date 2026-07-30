@@ -293,7 +293,8 @@ test_crossdc/custom_schedule_v100/run_custom_schedule.sh C_TRACE "$RUN_ROOT"
 3. CPU/Gloo `irecv` 仅轮询 `Work.is_completed()` 无法完成；现在使用带超时的
    `Work.wait()`。
 
-A、B、C 和 `C_TRACE` 均完成 20 个训练 iteration。去掉 1 个计时 warmup 后，
+A、B、C 和 `C_TRACE` 都以 `--train-iters 20` 启动；CrossPipe 实验 logger
+在收集 iteration 3–10 后于 iteration 11 主动退出。去掉 1 个计时 warmup 后，
 每组 7 个正式样本的结果为：
 
 | 模式 | median iteration |
