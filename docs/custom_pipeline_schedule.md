@@ -1,32 +1,81 @@
-# Custom Pipeline Schedule Validation (PP=4)
+# CrossPipe 自定义流水线调度：AI 实验上下文（PP=4）
 
-This feature loads a Magellan one-chunk schedule directly into CrossPipe and
-optionally enforces Magellan's extra communication dependencies. The first
-supported setup is one Linux node with four V100 GPUs:
+本文是本分支自定义调度功能的入口文档。远程服务器上的 AI 在运行、修改或优化实验前，应先阅读本文，再阅读 `megatron/core/pipeline_parallel/cdc_scheduler/` 下的实现。
+
+本功能将 Magellan 的 one-chunk 静态调度直接加载到 CrossPipe，并可选地执行 Magellan 生成的额外通信依赖。目标是让调度表同时控制计算 event、通信 event、通信顺序和跨 rank 的控制 signal，而不是重新实现一个固定的 1F1B 策略。
+
+当前支持目标是单机 4 张 V100：
 
 ```text
-PP=4, TP=1, DP=1, one model chunk, four microbatches
-activation recomputation off
-num_dc=1 and no injected communication delay
+PP=4, TP=1, DP=1, one model chunk, eight microbatches
+recomputation disabled
+num_dc=1, no injected communication delay or bandwidth constraint
 ```
 
-The Windows checkout is for editing and static review only. Run all commands
-below in the Linux environment that owns the four GPUs.
+Windows 工作树仅用于代码编辑和静态检查；真实训练必须在拥有 4 张 V100 的 Linux 服务器上执行。
+
+## 1. 已完成的修改
+
+### 参数与调度模式
+
+`megatron/training/arguments.py` 新增：
+
+```text
+--custom-pipeline-schedule <replay.order.json>
+--custom-comm-dependency <comm_dependency.json>
+--custom-schedule-trace-dir <trace-directory>
+```
+
+传入 order 文件后会自动启用 CrossPipe scheduler；custom mode 不能与
+`--static_schedule` 或 `--dynamic_schedule` 同时使用。dependency 文件必须
+和 order 文件一起使用。未显式配置延迟时，custom mode 使用零延迟默认值。
+
+### JSON 解析和静态 pipeline
+
+`cdc_scheduler/custom_schedule.py` 负责解析和校验 compute/communication
+操作、PP/microbatch 数量、通道方向、操作覆盖、重复操作和循环依赖，并生成
+canonical SHA256 供各 rank 做输入一致性检查。`pp_generator` 将解析结果
+转换为 one-chunk static pipeline；`pp_scheduler.py` 和 `execution_planner.py`
+使用这个静态表生成计算与通信 event，不回退到默认 1F1B 通信排序。
+
+### 通信依赖、Gloo 和 trace
+
+`comm_dependency.py` 在 NCCL 发送提交前执行依赖门控：local dependency 等待
+同 rank 的前置 NCCL Work 完成，remote dependency 由前置通信完成后的后台
+线程通过 CPU/Gloo process group 发出 `int64` signal。目标发送端接收 signal
+后才提交 NCCL send；接收端不会在 Gloo 上提前等待，从而避免形成环形等待。
+
+`parallel_state.py` 创建和管理 pipeline control Gloo group；
+`custom_schedule_trace.py` 记录 compute、NCCL、local wait、signal send/recv
+和 target submit；两个 `tools/` 脚本分别用于生成 Chrome/Perfetto trace 和
+比较默认 1F1B、custom order、custom order + dependency 的端到端结果。
+
+运行时遇到 timeout、Gloo 异常、missing predecessor 或 operation mismatch
+必须显式失败，不能用静默等待掩盖死锁。当前 Windows 没有真实 CUDA/NCCL/Gloo
+训练验证，Linux 4×V100 运行是下一步验证。
 
 ## Inputs
 
-Use the two files produced by the validated Magellan star topology:
+Use the two files committed in this branch, produced by the validated Magellan
+star topology `0-1, 1-2, 1-3`:
 
 ```text
-replay.order.json
-replay.notification.no_competition.notification_deps.json
+tests/unit_tests/pipeline_parallel/fixtures/replay_order_pp4_n8_star.json
+tests/unit_tests/pipeline_parallel/fixtures/notification_deps_pp4_n8_star.json
 ```
 
-The relevant extra dependencies in that result are:
+The result uses Magellan's 300 Gbps / 10 ms setup and directed-link-exclusive
+model, with eight microbatches. It contains 64 compute operations, 48
+communication operations, and 57 dependency edges. The dependency file includes
+both `serialize_same_src_dc_on_directed_link` and `insert_notify_delay_op`.
+The latter is the additional cross-rank control dependency, not ordinary
+channel ordering or rate allocation.
+
+The representative dependencies in this result are:
 
 ```text
-local:  Comm_F_3_2_3 completion -> Comm_B_0_2_1 submission
-remote: Comm_F_3_1_2 completion -> Gloo rank 1 to rank 3
+local:  Comm_F_4_2_3 completion -> Comm_B_0_2_1 submission
+remote: Comm_F_4_1_2 completion -> Gloo rank 1 to rank 3
         -> Comm_B_0_3_2 submission
 ```
 
@@ -34,6 +83,14 @@ The dependency filename is not fixed; its JSON schema and contents determine
 the behavior.
 
 ## Required CrossPipe arguments
+
+On the Linux server, set the paths to the committed fixtures:
+
+```bash
+export CROSSPIPE_ROOT=/path/to/crosspipe
+export ORDER_JSON="$CROSSPIPE_ROOT/tests/unit_tests/pipeline_parallel/fixtures/replay_order_pp4_n8_star.json"
+export DEP_JSON="$CROSSPIPE_ROOT/tests/unit_tests/pipeline_parallel/fixtures/notification_deps_pp4_n8_star.json"
+```
 
 Keep the model/data arguments from the existing four-GPU CrossPipe launch
 script. The common scheduler portion for all three runs is:
@@ -95,7 +152,7 @@ torchrun --standalone --nproc_per_node=4 pretrain_gpt.py \
 torchrun --standalone --nproc_per_node=4 pretrain_gpt.py \
   <identical-model-and-data-args> \
   ${COMMON_CDC_ARGS} \
-  --custom-pipeline-schedule /abs/path/replay.order.json \
+  --custom-pipeline-schedule "$ORDER_JSON" \
   --custom-schedule-trace-dir runs/custom_schedule/B_trace \
   --tensorboard-dir runs/custom_schedule/B_custom_order
 ```
@@ -106,15 +163,17 @@ torchrun --standalone --nproc_per_node=4 pretrain_gpt.py \
 torchrun --standalone --nproc_per_node=4 pretrain_gpt.py \
   <identical-model-and-data-args> \
   ${COMMON_CDC_ARGS} \
-  --custom-pipeline-schedule /abs/path/replay.order.json \
+  --custom-pipeline-schedule "$ORDER_JSON" \
   --custom-comm-dependency \
-    /abs/path/replay.notification.no_competition.notification_deps.json \
+    "$DEP_JSON" \
   --custom-schedule-trace-dir runs/custom_schedule/C_trace \
   --tensorboard-dir runs/custom_schedule/C_custom_dependency
 ```
 
-The supplied `replay.order.json` must contain exactly four microbatches,
-matching Megatron's runtime microbatch count in both training and evaluation.
+The supplied `replay_order_pp4_n8_star.json` contains exactly eight microbatches,
+so Megatron's runtime microbatch count must also be eight in both training and
+evaluation. The count is derived from the batch/DP configuration; do not only
+replace the JSON while leaving the runtime at four microbatches.
 
 ## Linux verification
 
@@ -146,12 +205,12 @@ Open the Chrome JSON in Perfetto or `chrome://tracing`. Check both flow
 relationships:
 
 ```text
-Comm_F_3_1_2 comm_complete
+Comm_F_4_1_2 comm_complete
   -> signal_send_start on pipeline rank 1
   -> signal_recv on pipeline rank 3
   -> Comm_B_0_3_2 target_submit
 
-Comm_F_3_2_3 comm_complete
+Comm_F_4_2_3 comm_complete
   -> local dependency wait end on pipeline rank 2
   -> Comm_B_0_2_1 target_submit
 ```
