@@ -1,0 +1,35 @@
+{
+  "comm_model": "link_exclusive",
+  "experiment": "opt_sim",
+  "measured": {
+    "replay_makespan_s": null,
+    "sat_makespan_s": null,
+    "sat_makespan_units": null,
+    "sat_solver_status": {
+      "code": null,
+      "name": null
+    },
+    "solver_status_code": null,
+    "solver_status_name": null
+  },
+  "notification_replay_makespan_s": 0.7760265937062911,
+  "notification_replay_notification_count": 7,
+  "notification_replay_notifications_json": "replay.notification.no_competition.notifications.json",
+  "r_save": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+  ],
+  "refine_measured_comm": false,
+  "replay_makespan_s": 0.7760265937062911,
+  "sa_competition_best_makespan_s": null,
+  "sat_makespan_s": 0.7760184362540022,
+  "sat_makespan_units": 57.078,
+  "sat_solver_status": {
+    "code": 4,
+    "name": "OPTIMAL"
+  },
+  "solver_status_code": 4,
+  "solver_status_name": "OPTIMAL"
+}

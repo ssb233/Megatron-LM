@@ -1,0 +1,1 @@
+completed config=M4 mode=MAGELLAN

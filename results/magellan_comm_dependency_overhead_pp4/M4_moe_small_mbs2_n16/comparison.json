@@ -1,0 +1,53 @@
+{
+  "config_id": "M4",
+  "model_type": "moe",
+  "hardware": "single-node 4x V100 32GB",
+  "parallelism": {
+    "tensor": 1,
+    "pipeline": 4,
+    "data": 1,
+    "expert": 1
+  },
+  "model": {
+    "layers": 8,
+    "hidden_size": 1024,
+    "ffn_hidden_size": 4096,
+    "attention_heads": 16,
+    "sequence_length": 256,
+    "experts": 8,
+    "router_topk": 2
+  },
+  "batching": {
+    "micro_batch_size": 2,
+    "global_batch_size": 32,
+    "microbatches_per_iteration": 16
+  },
+  "measurement": {
+    "formal_iterations": 20,
+    "included_iterations": "6-19",
+    "samples_per_arm": 14,
+    "repetitions": 1
+  },
+  "one_f_one_b": {
+    "mean_ms": 843.3785714285714,
+    "median_ms": 849.25,
+    "stdev_ms": 27.017463827094335
+  },
+  "magellan": {
+    "mean_ms": 706.3142857142857,
+    "median_ms": 707.9,
+    "stdev_ms": 23.266742760457866
+  },
+  "comparison": {
+    "iteration_time_reduction_percent": 16.25181032073378,
+    "speedup": 1.194055661178755,
+    "throughput_1f1b_samples_per_second": 37.94262871274551,
+    "throughput_magellan_samples_per_second": 45.30561061445734,
+    "throughput_improvement_percent": 19.405566117875495
+  },
+  "schedule_validation": {
+    "operation_count": 224,
+    "framework_dependency_count": 14,
+    "acyclic": true
+  }
+}
