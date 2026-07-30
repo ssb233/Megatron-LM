@@ -61,6 +61,26 @@ class CustomScheduleTrace:
         with self._lock:
             self._stream.write(encoded + "\n")
 
+    def record_delay_configuration(
+        self,
+        *,
+        latency_factor: float,
+        bandwidth_factor: float,
+        latency_seconds: float,
+        bandwidth_seconds: float,
+        forward_stage_seconds: float,
+    ) -> None:
+        """Record the communication-delay configuration active this iteration."""
+
+        self.record(
+            "delay_config",
+            latency_factor=float(latency_factor),
+            bandwidth_factor=float(bandwidth_factor),
+            latency_seconds=float(latency_seconds),
+            bandwidth_seconds=float(bandwidth_seconds),
+            forward_stage_seconds=float(forward_stage_seconds),
+        )
+
     def close(self) -> None:
         with self._lock:
             if not self._stream.closed:

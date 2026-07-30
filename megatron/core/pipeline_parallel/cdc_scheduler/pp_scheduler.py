@@ -1864,6 +1864,17 @@ class CDCPPScheduler:
         )
 
         self.update_schedule_with_latency_bandwidth()
+        if (
+            self.custom_schedule_trace is not None
+            and self.exp_manager.profile_result is not None
+        ):
+            self.custom_schedule_trace.record_delay_configuration(
+                latency_factor=self.injected_latency_delay[0],
+                bandwidth_factor=self.injected_bandwidth_delay[0],
+                latency_seconds=self.injected_latency_delay[1],
+                bandwidth_seconds=self.injected_bandwidth_delay[1],
+                forward_stage_seconds=self.exp_manager.T_F_stage,
+            )
 
         for idx, compute_task in enumerate(self.pp_execution_plan_cur_device):
             # self.cdc_print(f"compute_task: {compute_task}")
