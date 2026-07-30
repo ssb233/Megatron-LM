@@ -1,6 +1,9 @@
+import csv
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
+import sys
 
 import numpy as np
 import pytest
@@ -56,3 +59,23 @@ def test_build_control_latency_samples_matches_archived_trace():
     assert np.median(gloo) == pytest.approx(225.405)
     assert np.median(receiver) == pytest.approx(345.858)
 
+
+def test_plot_script_exports_three_stage_latency_artifacts():
+    subprocess.run(
+        [sys.executable, str(PLOT_SCRIPT)],
+        cwd=FIGURE_DIR,
+        check=True,
+    )
+
+    for suffix in (".svg", ".pdf", ".png"):
+        output = FIGURE_DIR / f"control_path_latency_3stage{suffix}"
+        assert output.stat().st_size > 0
+
+    with (
+        FIGURE_DIR / "source_data_signal_latency.csv"
+    ).open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(rows) == 56
+    assert sum(
+        row["sender_included_in_plot"] == "true" for row in rows
+    ) == 55

@@ -45,6 +45,7 @@ COLORS = {
     "b_compute": "#D9828F",
     "f_comm": "#2A9D8F",
     "b_comm": "#E39C37",
+    "sender_control": "#2A9D8F",
     "signal": "#6D3FC0",
     "dependency": "#3F216B",
     "neutral": "#737373",
@@ -696,26 +697,32 @@ def draw_causal_zoom(ax: plt.Axes, rows: list[dict], base_ns: int) -> None:
     )
 
 
-def draw_latency(ax: plt.Axes) -> None:
-    payload = json.loads(SIGNAL_DATA_PATH.read_text())
-    samples = [
-        row
-        for row in payload["samples"]
-        if 3 <= row["iteration"] <= 10
-    ]
+def draw_latency(ax: plt.Axes, samples: list[dict]) -> None:
+    sender = np.array(
+        [
+            row["sender_complete_to_send_us"]
+            for row in samples
+            if row["sender_included_in_plot"]
+        ]
+    )
     gloo = np.array(
-        [row["both_endpoints_ready_to_signal_recv_us"] for row in samples]
+        [row["gloo_ready_to_recv_us"] for row in samples]
     )
-    dispatch = np.array(
-        [row["signal_recv_to_target_submit_us"] for row in samples]
+    receiver = np.array(
+        [row["receiver_recv_to_submit_us"] for row in samples]
     )
-    data = [gloo, dispatch]
-    colors = [COLORS["signal"], COLORS["b_comm"]]
+    data = [sender, gloo, receiver]
+    colors = [
+        COLORS["sender_control"],
+        COLORS["signal"],
+        COLORS["b_comm"],
+    ]
+    positions = [1, 2, 3]
 
     boxes = ax.boxplot(
         data,
-        positions=[1, 2],
-        widths=0.42,
+        positions=positions,
+        widths=0.44,
         patch_artist=True,
         showfliers=False,
         medianprops={"color": "white", "linewidth": 1.2},
@@ -728,7 +735,7 @@ def draw_latency(ax: plt.Axes) -> None:
         patch.set_alpha(0.82)
 
     rng = np.random.default_rng(7)
-    for position, values, color in zip([1, 2], data, colors):
+    for position, values, color in zip(positions, data, colors):
         jitter = rng.normal(0, 0.055, size=len(values))
         ax.scatter(
             position + jitter,
@@ -752,10 +759,16 @@ def draw_latency(ax: plt.Axes) -> None:
             fontweight="bold",
         )
 
-    ax.set_xticks([1, 2])
-    ax.set_xticklabels(["Gloo\nready→recv", "dispatch\nrecv→submit"])
+    ax.set_xticks(positions)
+    ax.set_xticklabels(
+        [
+            "sender\ncomplete→send",
+            "Gloo\nready→recv",
+            "receiver\nrecv→submit",
+        ]
+    )
     ax.set_ylabel("Latency (μs)")
-    ax.set_ylim(0, max(dispatch) + 82)
+    ax.set_ylim(0, 600)
     ax.set_title(
         "c   Control-path latency",
         loc="left",
@@ -766,7 +779,7 @@ def draw_latency(ax: plt.Axes) -> None:
     ax.text(
         0.98,
         0.05,
-        "n = 56 dependencies\niterations 3–10",
+        "sender n = 55; Gloo/receiver n = 56\niterations 3–10",
         transform=ax.transAxes,
         ha="right",
         va="bottom",
@@ -776,7 +789,12 @@ def draw_latency(ax: plt.Axes) -> None:
     ax.tick_params(length=2.5)
     ax.grid(axis="y", color="#DEDEDE", linewidth=0.4, alpha=0.7)
 
-    with (HERE / "source_data_signal_latency.csv").open(
+
+def write_control_latency_source(
+    samples: list[dict],
+    output_path: Path,
+) -> None:
+    with output_path.open(
         "w", newline="", encoding="utf-8"
     ) as handle:
         writer = csv.writer(handle, lineterminator="\n")
@@ -784,8 +802,10 @@ def draw_latency(ax: plt.Axes) -> None:
             [
                 "iteration",
                 "dependency_id",
+                "sender_complete_to_send_us",
+                "sender_included_in_plot",
                 "gloo_both_endpoints_ready_to_recv_us",
-                "signal_recv_to_target_submit_us",
+                "receiver_signal_recv_to_target_submit_us",
             ]
         )
         for row in samples:
@@ -793,10 +813,42 @@ def draw_latency(ax: plt.Axes) -> None:
                 [
                     row["iteration"],
                     row["dependency_id"],
-                    row["both_endpoints_ready_to_signal_recv_us"],
-                    row["signal_recv_to_target_submit_us"],
+                    row["sender_complete_to_send_us"],
+                    str(row["sender_included_in_plot"]).lower(),
+                    row["gloo_ready_to_recv_us"],
+                    row["receiver_recv_to_submit_us"],
                 ]
             )
+
+
+def create_standalone_latency_figure(
+    samples: list[dict],
+) -> list[Path]:
+    figure, axis = plt.subplots(figsize=(4.4, 4.0))
+    draw_latency(axis, samples)
+    figure.subplots_adjust(
+        left=0.17,
+        right=0.985,
+        top=0.92,
+        bottom=0.19,
+    )
+    stem = HERE / "control_path_latency_3stage"
+    outputs = [
+        stem.with_suffix(".svg"),
+        stem.with_suffix(".pdf"),
+        stem.with_suffix(".png"),
+    ]
+    figure.savefig(outputs[0], bbox_inches="tight")
+    figure.savefig(outputs[1], bbox_inches="tight")
+    figure.savefig(outputs[2], dpi=600, bbox_inches="tight")
+    plt.close(figure)
+    svg_text = outputs[0].read_text(encoding="utf-8")
+    outputs[0].write_text(
+        "\n".join(line.rstrip() for line in svg_text.splitlines()) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    return outputs
 
 
 def write_iteration_source(
@@ -858,6 +910,13 @@ def write_iteration_source(
 
 def main() -> None:
     rows = load_rows()
+    signal_payload = json.loads(
+        SIGNAL_DATA_PATH.read_text(encoding="utf-8")
+    )
+    latency_samples = build_control_latency_samples(
+        rows,
+        signal_payload,
+    )
     selected = [row for row in rows if row.get("iteration") == ITERATION]
     base_ns = min(
         row["timestamp_ns"]
@@ -877,7 +936,7 @@ def main() -> None:
         2,
         2,
         height_ratios=[1.45, 1.0],
-        width_ratios=[2.55, 1.0],
+        width_ratios=[1.75, 1.55],
         hspace=0.42,
         wspace=0.36,
     )
@@ -887,8 +946,13 @@ def main() -> None:
 
     draw_overview(overview_ax, rows, compute, communications, base_ns)
     draw_causal_zoom(zoom_ax, rows, base_ns)
-    draw_latency(latency_ax)
+    draw_latency(latency_ax, latency_samples)
+    latency_ax.tick_params(axis="x", labelsize=5.4)
     write_iteration_source(compute, communications, base_ns)
+    write_control_latency_source(
+        latency_samples,
+        HERE / "source_data_signal_latency.csv",
+    )
 
     legend_handles = [
         Patch(facecolor=COLORS["f_compute"], label="Forward compute"),
@@ -936,6 +1000,9 @@ def main() -> None:
         "not GPU kernel-duration measurements."
     )
     (HERE / "figure_caption.txt").write_text(caption + "\n", encoding="utf-8")
+    standalone_outputs = create_standalone_latency_figure(
+        latency_samples
+    )
     print(
         json.dumps(
             {
@@ -945,7 +1012,8 @@ def main() -> None:
                 "outputs": [
                     str(stem.with_suffix(extension))
                     for extension in (".svg", ".pdf", ".png")
-                ],
+                ]
+                + [str(path) for path in standalone_outputs],
             },
             indent=2,
         )
