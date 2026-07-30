@@ -367,6 +367,73 @@ def test_local_dependency_waits_for_predecessor_work():
     assert work.wait_count == 1
 
 
+def test_disabled_dependency_controller_does_not_gate_warmup():
+    spec = load_custom_schedule(
+        str(SCHEDULE),
+        str(DEPENDENCIES),
+        pp_size=4,
+        num_microbatches=4,
+    )
+    controller = CommDependencyController(
+        spec,
+        pipeline_stage=2,
+        control_group=object(),
+        pipeline_global_ranks=[0, 1, 2, 3],
+    )
+    trigger = CommOpId("F", 3, 2, 3)
+    target = CommOpId("B", 0, 2, 1)
+    work = _FakeWork()
+
+    controller.set_enabled(False)
+    controller.register_send(trigger, work, forward_only=False)
+    controller.before_send(target, forward_only=False)
+    controller.finish_iteration()
+
+    assert work.wait_count == 0
+
+
+def test_shared_receiver_defers_target_recv_until_trigger_recv_completes():
+    spec = load_custom_schedule(
+        str(SCHEDULE),
+        str(DEPENDENCIES),
+        pp_size=4,
+        num_microbatches=4,
+    )
+    dependency = next(
+        dependency
+        for dependency in spec.dependencies
+        if dependency.is_remote
+        and dependency.trigger.dst_stage == dependency.target.dst_stage
+    )
+    controller = CommDependencyController(
+        spec,
+        pipeline_stage=dependency.target.dst_stage,
+        control_group=object(),
+        pipeline_global_ranks=[0, 1, 2, 3],
+    )
+    launches = []
+    trigger_work = _FakeWork()
+    target_work = _FakeWork()
+
+    deferred = controller.post_recv(
+        dependency.target,
+        lambda: launches.append(dependency.target.name) or target_work,
+        forward_only=False,
+    )
+    assert launches == []
+
+    controller.post_recv(
+        dependency.trigger,
+        lambda: launches.append(dependency.trigger.name) or trigger_work,
+        forward_only=False,
+    )
+    deferred.wait()
+
+    assert launches == [dependency.trigger.name, dependency.target.name]
+    assert trigger_work.wait_count == 1
+    assert target_work.wait_count == 1
+
+
 def test_remote_dependency_sends_and_receives_cpu_signal(monkeypatch):
     spec = load_custom_schedule(
         str(SCHEDULE),

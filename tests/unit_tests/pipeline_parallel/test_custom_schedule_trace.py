@@ -90,3 +90,22 @@ def test_trace_records_active_delay_configuration(tmp_path):
         "bandwidth_seconds": 0.005,
         "forward_stage_seconds": 0.01,
     }
+
+
+def test_trace_can_flush_each_event_for_deadlock_diagnostics(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("CUSTOM_SCHEDULE_TRACE_FLUSH_EACH_EVENT", "1")
+    trace = CustomScheduleTrace(
+        str(tmp_path),
+        global_rank=3,
+        pipeline_rank=3,
+        schedule_digest="abc",
+    )
+
+    text_before_close = (tmp_path / "rank_3.jsonl").read_text(
+        encoding="utf-8"
+    )
+    trace.close()
+
+    assert '"event":"trace_metadata"' in text_before_close

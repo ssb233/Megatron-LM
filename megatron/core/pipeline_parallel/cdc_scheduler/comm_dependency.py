@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import timedelta
 import threading
 import time
-from typing import Dict, Iterable, List, Optional, Sequence
+from typing import Callable, Dict, Iterable, List, Optional, Sequence
 
 import torch
 import torch.distributed as dist
@@ -17,11 +17,41 @@ from .custom_schedule import CommDependency, CommOpId, CustomScheduleSpec
 _SIGNAL_TAG_BASE = 31000
 
 
+class _DeferredRecvWork:
+    """Materialize an NCCL receive only when its result is first awaited."""
+
+    def __init__(self, launch: Callable[[], dist.Work]) -> None:
+        self._launch = launch
+        self._work: Optional[dist.Work] = None
+        self._lock = threading.Lock()
+
+    def materialize(self) -> dist.Work:
+        if self._work is None:
+            with self._lock:
+                if self._work is None:
+                    self._work = self._launch()
+        return self._work
+
+    def wait(self, *args, **kwargs):
+        return self.materialize().wait(*args, **kwargs)
+
+    def wait_with_lat_delay_in_ms(self, *args, **kwargs):
+        work = self.materialize()
+        return work.wait_with_lat_delay_in_ms(*args, **kwargs)
+
+    def is_completed(self) -> bool:
+        if self._work is None:
+            return False
+        return self._work.is_completed()
+
+
 class CommDependencyController:
     """Gate NCCL submissions using local Work waits and remote Gloo signals.
 
-    Receivers never wait on this control plane.  Only the rank that will submit
-    a target NCCL send may block, after the target tensor has been produced.
+    Target senders block on the CPU after their tensor has been produced.  When
+    a remote dependency's trigger and target share a receiving stage, that
+    stage also defers the target recv until the trigger recv has completed. This
+    prevents an unmatched early NCCL recv from blocking the trigger link.
     """
 
     def __init__(
@@ -48,6 +78,7 @@ class CommDependencyController:
             )
 
         self._work_by_op: Dict[CommOpId, dist.Work] = {}
+        self._recv_work_by_op: Dict[CommOpId, dist.Work] = {}
         self._remote_outgoing = defaultdict(list)
         self._dependency_by_pair = {}
         for dependency in self.spec.dependencies:
@@ -60,6 +91,12 @@ class CommDependencyController:
         self._threads: List[threading.Thread] = []
         self._thread_errors: List[BaseException] = []
         self._lock = threading.Lock()
+        self.enabled = True
+
+    def set_enabled(self, enabled: bool) -> None:
+        """Enable dependency enforcement for the current iteration."""
+
+        self.enabled = bool(enabled)
 
     @staticmethod
     def _wait_for_work_completion(
@@ -128,6 +165,8 @@ class CommDependencyController:
     def before_send(self, operation: CommOpId, *, forward_only: bool) -> None:
         """Wait for completion prerequisites before submitting ``operation``."""
 
+        if not self.enabled:
+            return
         if operation.src_stage != self.pipeline_stage:
             raise RuntimeError(
                 f"stage {self.pipeline_stage} cannot submit {operation.name}"
@@ -217,12 +256,92 @@ class CommDependencyController:
         *,
         forward_only: bool,
     ) -> List[int]:
+        if not self.enabled:
+            return []
         return [
             dependency.dependency_id
             for dependency in self.spec.dependencies
             if dependency.target == operation
             and self._dependency_is_active(dependency, forward_only)
         ]
+
+    def post_recv(
+        self,
+        operation: CommOpId,
+        launch_recv: Callable[[], dist.Work],
+        *,
+        forward_only: bool,
+    ) -> dist.Work:
+        """Post or safely defer a target recv on a shared receiving stage."""
+
+        shared_receiver_dependencies = [
+            dependency
+            for dependency in self.spec.dependencies
+            if self.enabled
+            and dependency.is_remote
+            and dependency.target == operation
+            and dependency.trigger.dst_stage == self.pipeline_stage
+            and dependency.target.dst_stage == self.pipeline_stage
+            and self._dependency_is_active(dependency, forward_only)
+        ]
+
+        if shared_receiver_dependencies:
+            work = _DeferredRecvWork(
+                lambda: self._launch_recv_after_shared_predecessors(
+                    operation,
+                    launch_recv,
+                    shared_receiver_dependencies,
+                )
+            )
+        else:
+            work = launch_recv()
+        self._recv_work_by_op[operation] = work
+        return work
+
+    def _launch_recv_after_shared_predecessors(
+        self,
+        operation: CommOpId,
+        launch_recv: Callable[[], dist.Work],
+        dependencies: Sequence[CommDependency],
+    ) -> dist.Work:
+        for dependency in dependencies:
+            try:
+                predecessor_work = self._recv_work_by_op[
+                    dependency.trigger
+                ]
+            except KeyError as exc:
+                raise RuntimeError(
+                    f"shared receiver stage {self.pipeline_stage} reached "
+                    f"{operation.name} before trigger recv "
+                    f"{dependency.trigger.name} was posted"
+                ) from exc
+            if isinstance(predecessor_work, _DeferredRecvWork):
+                predecessor_work = predecessor_work.materialize()
+            self._record(
+                "recv_dependency_wait_start",
+                dependency_id=dependency.dependency_id,
+                trigger=dependency.trigger.name,
+                target=operation.name,
+            )
+            self._wait_for_work_completion(
+                predecessor_work,
+                dependency.trigger,
+                self.timeout_seconds,
+            )
+            self._record(
+                "recv_dependency_wait_end",
+                dependency_id=dependency.dependency_id,
+                trigger=dependency.trigger.name,
+                target=operation.name,
+            )
+        self._record(
+            "recv_deferred_submit",
+            operation=operation.name,
+            dependency_ids=[
+                dependency.dependency_id for dependency in dependencies
+            ],
+        )
+        return launch_recv()
 
     def register_send(
         self,
@@ -233,6 +352,8 @@ class CommDependencyController:
     ) -> None:
         """Register an issued NCCL send and start any remote notifications."""
 
+        if not self.enabled:
+            return
         if operation.src_stage != self.pipeline_stage:
             raise RuntimeError(
                 f"stage {self.pipeline_stage} cannot register {operation.name}"
@@ -358,3 +479,4 @@ class CommDependencyController:
             )
         self._threads.clear()
         self._work_by_op.clear()
+        self._recv_work_by_op.clear()

@@ -1,6 +1,7 @@
 import pytest
 
 from megatron.core.pipeline_parallel.cdc_scheduler.delay_config import (
+    custom_dependencies_enabled,
     validate_custom_delay_configuration,
 )
 from megatron.core.pipeline_parallel.cdc_scheduler.pp_scheduler import (
@@ -87,3 +88,23 @@ def test_custom_schedule_updates_delay_without_replacing_plan():
 
 def test_process_pp_stages_per_dc_accepts_explicit_stage_counts():
     assert process_pp_stages_per_dc([1, 1, 1, 1], 4, 4) == [1, 1, 1, 1]
+
+
+@pytest.mark.parametrize(
+    "pairs,profile_ready,expected",
+    [
+        ([(0.0, 0.0)], False, True),
+        ([(0.0, 0.5), (0.0, 1.0)], False, False),
+        ([(0.0, 0.5), (0.0, 1.0)], True, True),
+    ],
+)
+def test_visualization_dependencies_start_after_profile(
+    pairs, profile_ready, expected
+):
+    assert (
+        custom_dependencies_enabled(
+            delay_pairs=pairs,
+            profile_ready=profile_ready,
+        )
+        is expected
+    )

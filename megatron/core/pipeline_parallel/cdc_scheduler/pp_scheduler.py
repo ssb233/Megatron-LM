@@ -56,6 +56,7 @@ from megatron.core.pipeline_parallel.cdc_scheduler.custom_schedule_trace import 
     CustomScheduleTrace,
 )
 from megatron.core.pipeline_parallel.cdc_scheduler.delay_config import (
+    custom_dependencies_enabled,
     validate_custom_delay_configuration,
 )
 from megatron.core.pipeline_parallel.cdc_scheduler.execution_planner import (
@@ -1246,19 +1247,31 @@ class CDCPPScheduler:
                     forward_only=forward_only,
                 )
         elif event.type == CommEventType.POST_RECV_NEXT:
-            self.recv_next_reqs[(event.mb_id, event.chunk_id, event.task_type)] = (
-                self.irecv(
+            def launch_recv_next():
+                work = self.irecv(
                     recv_buffer,
                     next_rank,
                     group=recv_next_group,
                     bandwidth_delay_ms=self.injected_bandwidth_delay[1] * 1000 if self.cdc_recv_next else 0,
                 )
-            )
-            self._trace_record(
-                "comm_post",
-                operation=operation.name,
-                comm_kind="recv",
-            )
+                self._trace_record(
+                    "comm_post",
+                    operation=operation.name,
+                    comm_kind="recv",
+                )
+                return work
+
+            if self.comm_dependency_controller is not None:
+                work = self.comm_dependency_controller.post_recv(
+                    operation,
+                    launch_recv_next,
+                    forward_only=forward_only,
+                )
+            else:
+                work = launch_recv_next()
+            self.recv_next_reqs[
+                (event.mb_id, event.chunk_id, event.task_type)
+            ] = work
         elif event.type == CommEventType.POST_SEND_PREV:
             if self.comm_dependency_controller is not None:
                 self.comm_dependency_controller.before_send(
@@ -1303,19 +1316,31 @@ class CDCPPScheduler:
                     forward_only=forward_only,
                 )
         elif event.type == CommEventType.POST_RECV_PREV:
-            self.recv_prev_reqs[(event.mb_id, event.chunk_id, event.task_type)] = (
-                self.irecv(
+            def launch_recv_prev():
+                work = self.irecv(
                     recv_buffer,
                     prev_rank,
                     group=recv_prev_group,
                     bandwidth_delay_ms=self.injected_bandwidth_delay[1] * 1000 if self.cdc_recv_prev else 0,
                 )
-            )
-            self._trace_record(
-                "comm_post",
-                operation=operation.name,
-                comm_kind="recv",
-            )
+                self._trace_record(
+                    "comm_post",
+                    operation=operation.name,
+                    comm_kind="recv",
+                )
+                return work
+
+            if self.comm_dependency_controller is not None:
+                work = self.comm_dependency_controller.post_recv(
+                    operation,
+                    launch_recv_prev,
+                    forward_only=forward_only,
+                )
+            else:
+                work = launch_recv_prev()
+            self.recv_prev_reqs[
+                (event.mb_id, event.chunk_id, event.task_type)
+            ] = work
         elif event.type == CommEventType.WAIT_SEND_NEXT:
             handle = self.send_next_reqs[(event.mb_id, event.chunk_id, event.task_type)]
             assert handle is not None
@@ -1866,6 +1891,15 @@ class CDCPPScheduler:
         )
 
         self.update_schedule_with_latency_bandwidth()
+        if self.comm_dependency_controller is not None:
+            self.comm_dependency_controller.set_enabled(
+                custom_dependencies_enabled(
+                    delay_pairs=(
+                        self.args.cdc_latency_bandwidth_delay_as_F_stage
+                    ),
+                    profile_ready=self.exp_manager.profile_result is not None,
+                )
+            )
         if (
             self.custom_schedule_trace is not None
             and self.exp_manager.profile_result is not None

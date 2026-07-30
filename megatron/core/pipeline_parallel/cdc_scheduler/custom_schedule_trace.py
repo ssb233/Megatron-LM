@@ -27,6 +27,9 @@ class CustomScheduleTrace:
         self.pipeline_rank = pipeline_rank
         self.schedule_digest = schedule_digest
         self.iteration = -1
+        self._flush_each_event = (
+            os.environ.get("CUSTOM_SCHEDULE_TRACE_FLUSH_EACH_EVENT") == "1"
+        )
         self._lock = threading.Lock()
         self._stream = open(
             os.path.join(self.trace_dir, f"rank_{global_rank}.jsonl"),
@@ -60,6 +63,8 @@ class CustomScheduleTrace:
         encoded = json.dumps(item, sort_keys=True, separators=(",", ":"))
         with self._lock:
             self._stream.write(encoded + "\n")
+            if self._flush_each_event:
+                self._stream.flush()
 
     def record_delay_configuration(
         self,

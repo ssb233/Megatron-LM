@@ -3,6 +3,20 @@
 from typing import Sequence, Tuple
 
 
+def custom_dependencies_enabled(
+    *,
+    delay_pairs: Sequence[Tuple[float, float]],
+    profile_ready: bool,
+) -> bool:
+    """Keep visualization-only dependencies off during profiling warmup."""
+
+    has_visualization_delay = any(
+        float(latency) != 0 or float(bandwidth) != 0
+        for latency, bandwidth in delay_pairs
+    )
+    return not has_visualization_delay or profile_ready
+
+
 def validate_custom_delay_configuration(
     *,
     pp_size: int,
