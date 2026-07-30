@@ -3,7 +3,10 @@ import pytest
 from megatron.core.pipeline_parallel.cdc_scheduler.delay_config import (
     validate_custom_delay_configuration,
 )
-from megatron.core.pipeline_parallel.cdc_scheduler.pp_scheduler import CDCPPScheduler
+from megatron.core.pipeline_parallel.cdc_scheduler.pp_scheduler import (
+    CDCPPScheduler,
+    process_pp_stages_per_dc,
+)
 
 
 def test_zero_delay_custom_schedule_accepts_single_dc():
@@ -80,3 +83,7 @@ def test_custom_schedule_updates_delay_without_replacing_plan():
     assert scheduler.injected_latency_delay == (0.0, 0.0)
     assert scheduler.injected_bandwidth_delay == (0.5, 0.005)
     assert scheduler.pp_execution_plan is marker
+
+
+def test_process_pp_stages_per_dc_accepts_explicit_stage_counts():
+    assert process_pp_stages_per_dc([1, 1, 1, 1], 4, 4) == [1, 1, 1, 1]

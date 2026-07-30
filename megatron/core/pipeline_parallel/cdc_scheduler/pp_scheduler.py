@@ -109,6 +109,8 @@ def process_pp_stages_per_dc(pp_stages_per_dc, pp_size, num_dc):
             ret[i] += 1
     elif len(pp_stages_per_dc) == 1:
         ret = [pp_stages_per_dc[0]] * num_dc
+    else:
+        ret = list(pp_stages_per_dc)
     assert (
         sum(ret) == pp_size
     ), f"pp_stages_per_dc {ret} does not sum to pp_size {pp_size}"
