@@ -1,3 +1,7 @@
+import json
+from pathlib import Path
+import subprocess
+
 import pytest
 
 from tools.magellan_overhead import (
@@ -124,3 +128,75 @@ def test_summary_reports_sample_standard_deviation():
         "min_ms": 100.0,
         "max_ms": 120.0,
     }
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+LAUNCHER = REPO_ROOT / "test_crossdc/magellan_overhead/run_training.sh"
+CONFIGS = REPO_ROOT / "test_crossdc/magellan_overhead/configs.json"
+
+
+def test_experiment_matrix_has_two_dense_and_two_moe_configs():
+    configs = json.loads(CONFIGS.read_text(encoding="utf-8"))
+
+    assert configs == {
+        "D1": {
+            "hidden": 1024,
+            "ffn": 4096,
+            "heads": 16,
+            "seq": 256,
+            "mbs": 1,
+            "gbs": 8,
+            "experts": None,
+        },
+        "D2": {
+            "hidden": 512,
+            "ffn": 2048,
+            "heads": 8,
+            "seq": 512,
+            "mbs": 2,
+            "gbs": 16,
+            "experts": None,
+        },
+        "M1": {
+            "hidden": 768,
+            "ffn": 3072,
+            "heads": 12,
+            "seq": 256,
+            "mbs": 1,
+            "gbs": 8,
+            "experts": 4,
+            "topk": 2,
+        },
+        "M2": {
+            "hidden": 384,
+            "ffn": 1536,
+            "heads": 6,
+            "seq": 512,
+            "mbs": 2,
+            "gbs": 16,
+            "experts": 4,
+            "topk": 2,
+        },
+    }
+
+
+def test_launcher_rejects_unknown_config_before_torchrun(tmp_path):
+    result = subprocess.run(
+        ["bash", str(LAUNCHER), "INVALID", "1F1B", str(tmp_path)],
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 2
+    assert "unknown configuration" in result.stderr
+
+
+def test_magellan_launcher_requires_both_schedule_files(tmp_path):
+    result = subprocess.run(
+        ["bash", str(LAUNCHER), "D1", "MAGELLAN", str(tmp_path)],
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 2
+    assert "requires order and dependency JSON" in result.stderr
