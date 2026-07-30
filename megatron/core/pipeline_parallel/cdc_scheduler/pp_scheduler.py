@@ -817,9 +817,9 @@ class CDCPPScheduler:
     def update_schedule_with_latency_bandwidth(self):
         # The external JSON is the authoritative static schedule. Profiling may
         # collect timings, but must never replace its TaskNodes or event plan.
-        if self.custom_schedule_spec is not None:
-            return
         if self.exp_manager.profile_result is None:
+            return
+        if not self.exp_manager.need_schedule_update_in_current_iter():
             return
         latency_sec, bandwidth_sec = (
             self.exp_manager.get_injected_latency_bandwidth_delay_seconds()
@@ -827,14 +827,15 @@ class CDCPPScheduler:
         latency_as_F_stage, bandwidth_as_F_stage = (
             self.exp_manager.get_injected_latency_bandwidth_delay_as_F_stage()
         )
-        if not self.exp_manager.need_schedule_update_in_current_iter():
-            return
         self.injected_latency_delay = (latency_as_F_stage, latency_sec)
         self.injected_bandwidth_delay = (bandwidth_as_F_stage, bandwidth_sec)
         self.cdc_print(
             f"Delay Config Update: latency {latency_as_F_stage} F stage, {latency_sec} seconds; bandwidth {bandwidth_as_F_stage} F stage, {bandwidth_sec} seconds",
             rank=0,
         )
+
+        if self.custom_schedule_spec is not None:
+            return
         
         estimated_runtime = 0
 
