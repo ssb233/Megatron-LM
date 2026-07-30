@@ -1,0 +1,53 @@
+{
+  "config_id": "D1",
+  "environment": {
+    "gpus": "4x V100 32GB",
+    "pipeline_parallel_size": 4,
+    "communication_delay_injection": false,
+    "recompute": false
+  },
+  "schedule": {
+    "microbatches": 8,
+    "operations": 112,
+    "raw_dependency_count": 46,
+    "extra_dependency_count": 6,
+    "remote_gloo_dependency_count": 3,
+    "acyclic": true,
+    "sha256": "bc41868d5223cc82bc6e44bdd09c990306ce92d9eae9b728f701888c0b8ac136"
+  },
+  "measurement_window": {
+    "first_iteration": 6,
+    "last_iteration": 19,
+    "reason": "exclude initialization/profile/config-transition and iteration-20 experiment-exit overhead"
+  },
+  "one_f_one_b": {
+    "count": 14,
+    "mean_ms": 299.4428571428571,
+    "median_ms": 314.20000000000005,
+    "stdev_ms": 26.66437306986218,
+    "min_ms": 238.1,
+    "max_ms": 323.6
+  },
+  "magellan_with_dependency": {
+    "count": 14,
+    "mean_ms": 277.6857142857143,
+    "median_ms": 281.4,
+    "stdev_ms": 25.987655564868522,
+    "min_ms": 211.7,
+    "max_ms": 310.0
+  },
+  "delta": {
+    "median_ms": -32.80000000000007,
+    "median_percent": -10.439210693825608,
+    "mean_ms": -21.75714285714281,
+    "mean_percent": -7.265874719717558
+  },
+  "correctness": {
+    "completed_iterations": 20,
+    "skipped_iterations": 0,
+    "nan_iterations": 0,
+    "loss_matches_baseline": true,
+    "deadlock": false
+  },
+  "scope": "single-run pilot; not a final statistically replicated benchmark"
+}
