@@ -3,7 +3,7 @@ set -euo pipefail
 
 MODE="${1:-}"
 if [[ -z "${MODE}" ]]; then
-  echo "Usage: $0 <A|B|C|C_TRACE> [run-root]" >&2
+  echo "Usage: $0 <A|B|C|C_TRACE|C_VIS> [run-root]" >&2
   exit 2
 fi
 
@@ -36,8 +36,12 @@ case "${MODE}" in
     RUN_NAME="C_trace"
     MASTER_PORT=29613
     ;;
+  C_VIS)
+    RUN_NAME="C_visualization_only_delay"
+    MASTER_PORT=29614
+    ;;
   *)
-    echo "Unknown mode '${MODE}'; expected A, B, C, or C_TRACE." >&2
+    echo "Unknown mode '${MODE}'; expected A, B, C, C_TRACE, or C_VIS." >&2
     exit 2
     ;;
 esac
@@ -52,6 +56,33 @@ export OMP_NUM_THREADS=1
 export PYTHONUNBUFFERED=1
 export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
 export TRITON_CACHE_DIR="${RUN_DIR}/triton_cache"
+
+NUM_DC=1
+PP_STAGES_PER_DC=()
+DELAY_PAIRS=(0,0)
+EXP_TEST_ITERS="${CDC_EXP_PER_CFG_TEST_ITERS:-8}"
+USE_CROSSPIPE_TORCH=0
+
+if [[ "${MODE}" == "C_VIS" ]]; then
+  NUM_DC=4
+  PP_STAGES_PER_DC=(1 1 1 1)
+  DELAY_PAIRS=(0,0.5 0,1.0)
+  USE_CROSSPIPE_TORCH=1
+fi
+
+if [[ "${USE_CROSSPIPE_TORCH}" == "1" ]]; then
+  PYTORCH_CROSSPIPE_ROOT="/home/songxb26/mnist/pytorch-corsspipe"
+  export PYTHONPATH="${PYTORCH_CROSSPIPE_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
+  "${PYTHON}" -c '
+from pathlib import Path
+import torch
+root = Path("/home/songxb26/mnist/pytorch-corsspipe").resolve()
+loaded = Path(torch.__file__).resolve()
+assert loaded.is_relative_to(root), (loaded, root)
+assert torch.__version__ == "2.5.0a0+git00abf21", torch.__version__
+print(f"custom torch: {loaded} ({torch.__version__})")
+'
+fi
 
 COMMON_ARGS=(
   --tensor-model-parallel-size 1
@@ -102,16 +133,21 @@ COMMON_ARGS=(
   --overlap-grad-reduce
   --overlap-param-gather
   --ddp-bucket-size 100000000000
-  --num_dc 1
   --cdc_profile_iter 2
   --cdc_exp_logging
   --cdc_exp_test_start_iter 3
-  --cdc_exp_per_cfg_test_iters 8
   --cdc_exp_tf_block_size 2
   --cdc_exp_dump_execution_plan
-  --cdc_latency_bandwidth_delay_as_F_stage 0,0
   --cdc_verbose_print 1
 )
+COMMON_ARGS+=(
+  --num_dc "${NUM_DC}"
+  --cdc_exp_per_cfg_test_iters "${EXP_TEST_ITERS}"
+  --cdc_latency_bandwidth_delay_as_F_stage "${DELAY_PAIRS[@]}"
+)
+if [[ "${#PP_STAGES_PER_DC[@]}" -gt 0 ]]; then
+  COMMON_ARGS+=(--pp_stages_per_dc "${PP_STAGES_PER_DC[@]}")
+fi
 
 SCHEDULE_ARGS=()
 case "${MODE}" in
@@ -134,6 +170,13 @@ case "${MODE}" in
       --custom-schedule-trace-dir "${RUN_DIR}/trace"
     )
     ;;
+  C_VIS)
+    SCHEDULE_ARGS+=(
+      --custom-pipeline-schedule "${ORDER_FILE}"
+      --custom-comm-dependency "${DEPENDENCY_FILE}"
+      --custom-schedule-trace-dir "${RUN_DIR}/trace"
+    )
+    ;;
 esac
 
 {
@@ -142,6 +185,11 @@ esac
   echo "order_file=${ORDER_FILE}"
   echo "dependency_file=${DEPENDENCY_FILE}"
   echo "command_python=${PYTHON}"
+  echo "num_dc=${NUM_DC}"
+  echo "pp_stages_per_dc=${PP_STAGES_PER_DC[*]:-}"
+  echo "delay_pairs=${DELAY_PAIRS[*]}"
+  echo "exp_test_iters=${EXP_TEST_ITERS}"
+  echo "pythonpath=${PYTHONPATH:-}"
 } | tee "${RUN_DIR}/run.info"
 
 cd "${REPO_ROOT}"

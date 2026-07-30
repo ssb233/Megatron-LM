@@ -333,3 +333,27 @@ Chrome trace 可用 Perfetto 打开，以 `microbatch`、F/B、compute/communica
 dependency id 和 signal flow 检查执行顺序。此次实机验证证明当前实现可在
 单机 4×V100 上执行非默认通信顺序及额外跨 rank 通信依赖；它不是跨 DC
 性能结论，因为实验刻意使用 `num_dc=1` 和零注入时延。
+# Visualization-only transfer-delay experiment
+
+Experiment `C_VIS` keeps the external PP=4 order and communication dependency
+graph unchanged, but makes P2P communication visible in the trace by injecting
+transfer delay on every logical pipeline boundary:
+
+```bash
+test_crossdc/custom_schedule_v100/run_custom_schedule.sh \
+  C_VIS \
+  "$PWD/runs/custom_schedule_v100/visualization_delay_20260730"
+```
+
+The launcher prepends `/home/songxb26/mnist/pytorch-corsspipe` to
+`PYTHONPATH` and rejects any other PyTorch path or version. This custom build
+implements transfer delay as a GPU sleep on the NCCL stream. It sends no dummy
+payload and does not change the Magellan order or `comm_dependency` edges.
+
+With the default settings, iteration 2 profiles `T_F_stage`, iterations 3–10
+use a `0.5×T_F_stage` transfer delay, and iterations 11–18 use
+`1.0×T_F_stage`. The run exits at iteration 19. Set
+`CDC_EXP_PER_CFG_TEST_ITERS=1` for a smoke run.
+
+> **Warning:** `C_VIS` is a visualization-only experiment. Do not mix its
+> iteration times with the zero-delay A/B/C throughput comparison.
