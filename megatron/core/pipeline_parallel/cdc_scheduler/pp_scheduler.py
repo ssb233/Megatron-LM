@@ -55,6 +55,9 @@ from megatron.core.pipeline_parallel.cdc_scheduler.comm_dependency import (
 from megatron.core.pipeline_parallel.cdc_scheduler.custom_schedule_trace import (
     CustomScheduleTrace,
 )
+from megatron.core.pipeline_parallel.cdc_scheduler.delay_config import (
+    validate_custom_delay_configuration,
+)
 from megatron.core.pipeline_parallel.cdc_scheduler.execution_planner import (
     CommEvent,
     CommEventType,
@@ -1023,13 +1026,12 @@ class CDCPPScheduler:
             assert args.recompute_method is None, (
                 "custom pipeline schedule must run with activation recomputation off"
             )
-            assert args.num_dc == 1, (
-                "custom schedule validation run must not inject cross-DC delay"
+            validate_custom_delay_configuration(
+                pp_size=args.pipeline_model_parallel_size,
+                num_dc=args.num_dc,
+                pp_stages_per_dc=args.pp_stages_per_dc,
+                delay_pairs=args.cdc_latency_bandwidth_delay_as_F_stage,
             )
-            assert all(
-                latency == 0 and bandwidth == 0
-                for latency, bandwidth in args.cdc_latency_bandwidth_delay_as_F_stage
-            ), "custom schedule validation run must not inject communication delay"
 
         assert (
             not args.align_grad_reduce

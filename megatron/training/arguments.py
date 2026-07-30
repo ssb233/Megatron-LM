@@ -18,6 +18,9 @@ from megatron.core.models.retro.utils import (
     get_gpt_data_dir as get_retro_data_dir,
 )
 from megatron.core.transformer import TransformerConfig
+from megatron.core.pipeline_parallel.cdc_scheduler.delay_config import (
+    validate_custom_delay_configuration,
+)
 from megatron.training.activations import squared_relu
 from megatron.training.utils import update_use_dist_ckpt
 
@@ -341,13 +344,12 @@ def validate_args(args, defaults={}):
         assert args.recompute_method is None, (
             "custom pipeline schedule requires recomputation to be disabled"
         )
-        assert args.num_dc == 1, (
-            "custom pipeline schedule validation does not inject cross-DC delay"
+        validate_custom_delay_configuration(
+            pp_size=args.pipeline_model_parallel_size,
+            num_dc=args.num_dc,
+            pp_stages_per_dc=args.pp_stages_per_dc,
+            delay_pairs=args.cdc_latency_bandwidth_delay_as_F_stage,
         )
-        assert all(
-            latency == 0 and bandwidth == 0
-            for latency, bandwidth in args.cdc_latency_bandwidth_delay_as_F_stage
-        ), "custom pipeline schedule requires a zero communication-delay config"
         assert not args.standalone_embedding_stage, (
             "custom pipeline schedule does not support a standalone embedding stage"
         )
