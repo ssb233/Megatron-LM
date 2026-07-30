@@ -92,20 +92,27 @@ F4: S1→S2  →  B0: S3→S2  →  F5: S1→S2
 
 ## Signal 测量
 
-正式 iteration 3–10 共包含 56 个 remote dependency 样本：
+正式 iteration 3–10 共包含 56 个 remote dependency 样本。三段 CPU
+控制路径的定义和统计如下：
 
 | 指标 | Median | P95 |
 |---|---:|---:|
+| trigger `comm_complete` 到发送端 `signal_send_start` | 183.266 μs | 342.820 μs |
 | 两端均已提交后的 Gloo 完成延迟 | 225.405 μs | 290.480 μs |
 | `signal_recv` 到目标 NCCL `target_submit` | 345.858 μs | 485.881 μs |
 
-第一个指标定义为：
+三个指标依次定义为：
 
 ```text
+signal_send_start - trigger_comm_complete
 signal_recv - max(signal_send_start, signal_wait_start)
+target_submit - signal_recv
 ```
 
-该定义排除了发送端或接收端尚未进入 Gloo 操作的调度等待时间。
+中间的 Gloo 指标排除了发送端或接收端尚未进入 Gloo 操作的调度等待时间。
+发送端分布有一个约 1.19 ms 的长尾；按绘图口径不展示该点，因此 sender
+列展示 55 个样本，Gloo 和 receiver 列各展示全部 56 个样本。原始值仍保留在
+`source_data_signal_latency.csv`，并标记为 `sender_included_in_plot=false`。
 
 ## 目录结构
 
@@ -143,6 +150,9 @@ figure/
   custom_schedule_trace.svg
   custom_schedule_trace.pdf
   custom_schedule_trace.png
+  control_path_latency_3stage.svg
+  control_path_latency_3stage.pdf
+  control_path_latency_3stage.png
   figure_caption.txt
   plot_custom_schedule_trace.py
   source_data_iteration5.csv

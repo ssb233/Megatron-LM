@@ -995,7 +995,11 @@ def main() -> None:
         "then signals and unlocks F5 (S1→S2). Solid purple segments measure Gloo "
         "completion after both endpoints are posted; dashed segments indicate that "
         "the sender was posted before the receiver began waiting. (c) Control-path "
-        "latencies over 56 remote dependencies from steady-state iterations 3–10. "
+        "latencies separate trigger communication completion to signal send, Gloo "
+        "completion after both endpoints are ready, and signal receive to target "
+        "communication submission over 56 remote dependencies from steady-state "
+        "iterations 3–10. The sender distribution displays 55 samples after excluding "
+        "one 1.19 ms tail sample; the source CSV retains all 56 samples. "
         "Compute intervals and communication events are host-side instrumentation, "
         "not GPU kernel-duration measurements."
     )
