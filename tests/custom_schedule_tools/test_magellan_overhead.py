@@ -225,6 +225,15 @@ def test_experiment_matrix_includes_moe_n8_positive_case():
             "experts": 8,
             "topk": 2,
         },
+        "D3": {
+            "hidden": 1024,
+            "ffn": 4096,
+            "heads": 16,
+            "seq": 256,
+            "mbs": 2,
+            "gbs": 32,
+            "experts": None,
+        },
     }
 
     assert all(

@@ -1,0 +1,1 @@
+completed config=D3 mode=MAGELLAN

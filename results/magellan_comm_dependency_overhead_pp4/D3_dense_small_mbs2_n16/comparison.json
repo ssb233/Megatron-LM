@@ -1,0 +1,50 @@
+{
+  "config_id": "D3",
+  "model_type": "dense",
+  "hardware": "single-node 4x V100 32GB",
+  "parallelism": {
+    "tensor": 1,
+    "pipeline": 4,
+    "data": 1
+  },
+  "model": {
+    "layers": 8,
+    "hidden_size": 1024,
+    "ffn_hidden_size": 4096,
+    "attention_heads": 16,
+    "sequence_length": 256
+  },
+  "batching": {
+    "micro_batch_size": 2,
+    "global_batch_size": 32,
+    "microbatches_per_iteration": 16
+  },
+  "measurement": {
+    "formal_iterations": 20,
+    "included_iterations": "6-19",
+    "samples_per_arm": 14,
+    "repetitions": 1
+  },
+  "one_f_one_b": {
+    "mean_ms": 562.3928571428571,
+    "median_ms": 563.8,
+    "stdev_ms": 10.824364560188648
+  },
+  "magellan": {
+    "mean_ms": 476.3642857142857,
+    "median_ms": 491.8,
+    "stdev_ms": 27.71538331915098
+  },
+  "comparison": {
+    "iteration_time_reduction_percent": 15.296881945767446,
+    "speedup": 1.1805940831596466,
+    "throughput_1f1b_samples_per_second": 56.899726932114056,
+    "throughput_magellan_samples_per_second": 67.17548094945346,
+    "throughput_improvement_percent": 18.05940831596466
+  },
+  "schedule_validation": {
+    "operation_count": 224,
+    "framework_dependency_count": 14,
+    "acyclic": true
+  }
+}

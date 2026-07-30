@@ -1,0 +1,12 @@
+config_id=D3
+mode=1F1B
+run_dir=runs/magellan_comm_dependency_overhead_pp4/d3_small_n16_single_20260730/D3_1f1b
+order_file=
+dependency_file=
+num_dc=1
+delay_pairs=0,0
+train_iters=20
+measured_iterations=6-19
+exp_test_iters=17
+python=/home/songxb26/mnist/.venvs/crosspipi-magellan/bin/python
+command=/home/songxb26/mnist/.venvs/crosspipi-magellan/bin/python -m torch.distributed.run --standalone --nproc_per_node=4 --master_port=29721 pretrain_gpt.py --tensor-model-parallel-size 1 --pipeline-model-parallel-size 4 --num-layers-per-virtual-pipeline-stage 2 --num-layers 8 --hidden-size 1024 --ffn-hidden-size 4096 --num-attention-heads 16 --seq-length 256 --max-position-embeddings 256 --micro-batch-size 2 --global-batch-size 32 --train-iters 20 --transformer-impl local --normalization LayerNorm --position-embedding-type learned_absolute --tokenizer-type GPT2BPETokenizer --data-path /home/songxb26/mnist/crosspipe-old/data/output_text_document_text_document --vocab-file /home/songxb26/mnist/crosspipe-old/data/gpt2-vocab.json --merge-file /home/songxb26/mnist/crosspipe-old/data/gpt2-merges.txt --data-cache-path /home/songxb26/mnist/crosspipi-magellan/runs/magellan_comm_dependency_overhead_pp4/shared_data_cache/D3 --split 949\,50\,1 --fp16 --loss-scale 1 --lr 3e-4 --min-lr 3e-5 --lr-decay-style cosine --lr-warmup-iters 0 --weight-decay 0.1 --adam-beta1 .9 --adam-beta2 .95 --adam-eps 1e-8 --clip-grad 1 --init-method-std .02 --seed 1234 --log-interval 1 --eval-iters 0 --tensorboard-dir runs/magellan_comm_dependency_overhead_pp4/d3_small_n16_single_20260730/D3_1f1b --no-check-for-nan-in-loss-and-grad --no-barrier-with-level-1-timing --ckpt-format torch --distributed-timeout-minutes 2 --head_tail_as_one_layer --num_subparts 1 --no-align-grad-reduce --no-align-param-gather --use-distributed-optimizer --overlap-grad-reduce --overlap-param-gather --ddp-bucket-size 100000000000 --cdc_profile_iter 2 --cdc_exp_logging --cdc_exp_test_start_iter 3 --cdc_exp_tf_block_size 2 --cdc_verbose_print 1 --num_dc 1 --cdc_exp_per_cfg_test_iters 17 --cdc_latency_bandwidth_delay_as_F_stage 0\,0 --enable_cdcpp_scheduler --static_schedule 1F1B 
