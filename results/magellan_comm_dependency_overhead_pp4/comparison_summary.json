@@ -1,0 +1,75 @@
+{
+  "date": "2026-07-30",
+  "hardware": "single-node 4x Tesla V100-SXM2-32GB",
+  "measurement_iterations": [6, 19],
+  "samples_per_arm": 14,
+  "common_config": {
+    "pipeline_parallel": 4,
+    "tensor_parallel": 1,
+    "data_parallel": 1,
+    "layers": 8,
+    "hidden": 4096,
+    "ffn": 4096,
+    "heads": 16,
+    "sequence": 2048,
+    "micro_batch_size": 1,
+    "global_batch_size": 8,
+    "microbatches": 8,
+    "fp16": true,
+    "recompute": false,
+    "num_dc": 1,
+    "delay_factors": [0, 0]
+  },
+  "solver_calibration": {
+    "h4096_profiled": false,
+    "note": "Reused H=1024,S=2048 comm_units; t_fwd_s scaled by 4 for display only.",
+    "dense_comm_units": 0.04107446185203048,
+    "moe_comm_units": 0.017679909587792298
+  },
+  "dense": {
+    "one_f_one_b": {
+      "mean_ms": 583.4714285714285,
+      "median_ms": 583.0,
+      "stdev_ms": 2.1741235445147002,
+      "min_ms": 579.7,
+      "max_ms": 586.8,
+      "peak_allocated_mib": 6156.87890625
+    },
+    "magellan": {
+      "mean_ms": 581.3928571428571,
+      "median_ms": 581.1500000000001,
+      "stdev_ms": 2.7042599686461424,
+      "min_ms": 575.8,
+      "max_ms": 586.8,
+      "peak_allocated_mib": 9857.36328125
+    },
+    "median_change_percent": -0.317324,
+    "mean_change_percent": -0.356242,
+    "extra_dependencies": 6,
+    "remote_dependencies": 3
+  },
+  "moe": {
+    "experts": 8,
+    "topk": 2,
+    "one_f_one_b": {
+      "mean_ms": 721.55,
+      "median_ms": 721.5,
+      "stdev_ms": 3.780262506147489,
+      "min_ms": 716.6,
+      "max_ms": 728.4,
+      "peak_allocated_mib": 12978.4501953125
+    },
+    "magellan": {
+      "mean_ms": 729.3857142857142,
+      "median_ms": 729.95,
+      "stdev_ms": 2.7734613594005384,
+      "min_ms": 724.5,
+      "max_ms": 733.3,
+      "peak_allocated_mib": 15024.8955078125
+    },
+    "median_change_percent": 1.171171,
+    "mean_change_percent": 1.085956,
+    "extra_dependencies": 4,
+    "remote_dependencies": 3
+  }
+}

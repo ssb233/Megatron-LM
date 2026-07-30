@@ -46,5 +46,43 @@
     "gbs": 8,
     "experts": 8,
     "topk": 2
+  },
+  "D1S2048": {
+    "hidden": 1024,
+    "ffn": 4096,
+    "heads": 16,
+    "seq": 2048,
+    "mbs": 1,
+    "gbs": 8,
+    "experts": null
+  },
+  "M3S2048": {
+    "hidden": 1024,
+    "ffn": 4096,
+    "heads": 16,
+    "seq": 2048,
+    "mbs": 1,
+    "gbs": 8,
+    "experts": 8,
+    "topk": 2
+  },
+  "D1H4096S2048": {
+    "hidden": 4096,
+    "ffn": 4096,
+    "heads": 16,
+    "seq": 2048,
+    "mbs": 1,
+    "gbs": 8,
+    "experts": null
+  },
+  "M3H4096S2048": {
+    "hidden": 4096,
+    "ffn": 4096,
+    "heads": 16,
+    "seq": 2048,
+    "mbs": 1,
+    "gbs": 8,
+    "experts": 8,
+    "topk": 2
   }
 }

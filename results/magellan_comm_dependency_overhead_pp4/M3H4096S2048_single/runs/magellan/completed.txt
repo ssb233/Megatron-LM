@@ -1,0 +1,1 @@
+completed config=M3H4096S2048 mode=MAGELLAN

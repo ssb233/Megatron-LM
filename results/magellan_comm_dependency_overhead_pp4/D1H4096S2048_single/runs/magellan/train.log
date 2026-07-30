@@ -1,0 +1,729 @@
+/home/songxb26/mnist/crosspipi-magellan/megatron/core/transformer/transformer_config.py:8: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import packaging
+/home/songxb26/mnist/crosspipi-magellan/megatron/core/transformer/transformer_config.py:8: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import packaging
+/home/songxb26/mnist/crosspipi-magellan/megatron/core/transformer/transformer_config.py:8: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import packaging
+/home/songxb26/mnist/crosspipi-magellan/megatron/core/transformer/transformer_config.py:8: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import packaging
+/home/songxb26/.local/lib/python3.12/site-packages/transformers/utils/generic.py:441: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+/home/songxb26/.local/lib/python3.12/site-packages/transformers/utils/generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+/home/songxb26/.local/lib/python3.12/site-packages/transformers/utils/generic.py:441: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+/home/songxb26/.local/lib/python3.12/site-packages/transformers/utils/generic.py:441: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+/home/songxb26/.local/lib/python3.12/site-packages/transformers/utils/generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+/home/songxb26/.local/lib/python3.12/site-packages/transformers/utils/generic.py:441: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+/home/songxb26/.local/lib/python3.12/site-packages/transformers/utils/generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+/home/songxb26/.local/lib/python3.12/site-packages/transformers/utils/generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+/home/songxb26/.local/lib/python3.12/site-packages/transformers/utils/generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+/home/songxb26/.local/lib/python3.12/site-packages/transformers/utils/generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+/home/songxb26/.local/lib/python3.12/site-packages/transformers/utils/generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+/home/songxb26/.local/lib/python3.12/site-packages/transformers/utils/generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+<frozen importlib._bootstrap>:488: DeprecationWarning: Type google._upb._message.MessageMapContainer uses PyType_Spec with a metaclass that has custom tp_new. This is deprecated and will no longer be allowed in Python 3.14.
+<frozen importlib._bootstrap>:488: DeprecationWarning: Type google._upb._message.ScalarMapContainer uses PyType_Spec with a metaclass that has custom tp_new. This is deprecated and will no longer be allowed in Python 3.14.
+/usr/local/lib/python3.12/dist-packages/google/protobuf/internal/well_known_types.py:93: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+  _EPOCH_DATETIME_NAIVE = datetime.datetime.utcfromtimestamp(0)
+<frozen importlib._bootstrap>:488: DeprecationWarning: Type google._upb._message.MessageMapContainer uses PyType_Spec with a metaclass that has custom tp_new. This is deprecated and will no longer be allowed in Python 3.14.
+<frozen importlib._bootstrap>:488: DeprecationWarning: Type google._upb._message.ScalarMapContainer uses PyType_Spec with a metaclass that has custom tp_new. This is deprecated and will no longer be allowed in Python 3.14.
+/usr/local/lib/python3.12/dist-packages/google/protobuf/internal/well_known_types.py:93: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+  _EPOCH_DATETIME_NAIVE = datetime.datetime.utcfromtimestamp(0)
+<frozen importlib._bootstrap>:488: DeprecationWarning: Type google._upb._message.MessageMapContainer uses PyType_Spec with a metaclass that has custom tp_new. This is deprecated and will no longer be allowed in Python 3.14.
+<frozen importlib._bootstrap>:488: DeprecationWarning: Type google._upb._message.ScalarMapContainer uses PyType_Spec with a metaclass that has custom tp_new. This is deprecated and will no longer be allowed in Python 3.14.
+/usr/local/lib/python3.12/dist-packages/google/protobuf/internal/well_known_types.py:93: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+  _EPOCH_DATETIME_NAIVE = datetime.datetime.utcfromtimestamp(0)
+<frozen importlib._bootstrap>:488: DeprecationWarning: Type google._upb._message.MessageMapContainer uses PyType_Spec with a metaclass that has custom tp_new. This is deprecated and will no longer be allowed in Python 3.14.
+<frozen importlib._bootstrap>:488: DeprecationWarning: Type google._upb._message.ScalarMapContainer uses PyType_Spec with a metaclass that has custom tp_new. This is deprecated and will no longer be allowed in Python 3.14.
+/usr/local/lib/python3.12/dist-packages/google/protobuf/internal/well_known_types.py:93: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+  _EPOCH_DATETIME_NAIVE = datetime.datetime.utcfromtimestamp(0)
+/home/songxb26/mnist/crosspipi-magellan/megatron/training/tokenizer/gpt2_tokenization.py:159: ResourceWarning: unclosed file <_io.TextIOWrapper name='/home/songxb26/mnist/crosspipe-old/data/gpt2-vocab.json' mode='r' encoding='UTF-8'>
+  self.encoder = json.load(open(vocab_file))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/songxb26/mnist/crosspipi-magellan/megatron/training/tokenizer/gpt2_tokenization.py:164: ResourceWarning: unclosed file <_io.TextIOWrapper name='/home/songxb26/mnist/crosspipe-old/data/gpt2-merges.txt' mode='r' encoding='utf-8'>
+  bpe_data = open(merges_file, encoding='utf-8').read().split('\n')[1:-1]
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+using world size: 4, data-parallel size: 1, context-parallel size: 1, tensor-model-parallel size: 1, encoder-tensor-model-parallel size: 0, pipeline-model-parallel size: 4, encoder-pipeline-model-parallel size: 0
+WARNING: overriding default arguments for tokenizer_type:GPT2BPETokenizer                        with tokenizer_type:GPT2BPETokenizer
+using torch.float16 for parameters ...
+------------------------ arguments ------------------------
+  accumulate_allreduce_grads_in_fp32 .............. False
+  adam_beta1 ...................................... 0.9
+  adam_beta2 ...................................... 0.95
+  adam_eps ........................................ 1e-08
+  add_bias_linear ................................. True
+  add_position_embedding .......................... True
+  add_qkv_bias .................................... False
+  adlr_autoresume ................................. False
+  adlr_autoresume_interval ........................ 1000
+  align_grad_reduce ............................... False
+  align_param_gather .............................. False
+  app_tag_run_name ................................ None
+  app_tag_run_version ............................. 0.0.0
+  apply_layernorm_1p .............................. False
+  apply_query_key_layer_scaling ................... False
+  apply_residual_connection_post_layernorm ........ False
+  apply_rope_fusion ............................... True
+  async_save ...................................... None
+  async_tensor_model_parallel_allreduce ........... True
+  attention_dropout ............................... 0.1
+  attention_softmax_in_fp32 ....................... False
+  auto_detect_ckpt_format ......................... False
+  barrier_with_L1_time ............................ False
+  bert_binary_head ................................ True
+  bert_embedder_type .............................. megatron
+  bert_load ....................................... None
+  bf16 ............................................ False
+  bias_dropout_fusion ............................. True
+  bias_gelu_fusion ................................ True
+  bias_swiglu_fusion .............................. True
+  biencoder_projection_dim ........................ 0
+  biencoder_shared_query_context_model ............ False
+  block_data_path ................................. None
+  calculate_per_token_loss ........................ False
+  cdc_exp_dump_execution_plan ..................... False
+  cdc_exp_logging ................................. True
+  cdc_exp_per_cfg_test_iters ...................... 17
+  cdc_exp_test_start_iter ......................... 3
+  cdc_exp_tf_block_size ........................... 2
+  cdc_latency_bandwidth_delay_as_F_stage .......... [(0.0, 0.0)]
+  cdc_print_rank .................................. -1
+  cdc_profile_iter ................................ 2
+  cdc_verbose_print ............................... 1
+  check_for_nan_in_loss_and_grad .................. False
+  check_weight_hash_across_dp_replicas_interval ... None
+  ckpt_assume_constant_structure .................. False
+  ckpt_convert_format ............................. None
+  ckpt_convert_save ............................... None
+  ckpt_convert_update_legacy_dist_opt_format ...... False
+  ckpt_format ..................................... torch
+  ckpt_fully_parallel_load ........................ False
+  ckpt_fully_parallel_save ........................ True
+  ckpt_fully_parallel_save_deprecated ............. False
+  ckpt_step ....................................... None
+  classes_fraction ................................ 1.0
+  clip_grad ....................................... 1.0
+  clone_scatter_output_in_embedding ............... True
+  config_logger_dir ...............................
+  consumed_train_samples .......................... 0
+  consumed_valid_samples .......................... 0
+  context_parallel_size ........................... 1
+  create_attention_mask_in_dataloader ............. True
+  cross_entropy_loss_fusion ....................... False
+  custom_comm_dependency .......................... results/magellan_comm_dependency_overhead_pp4/D1H4096S2048_single/solver/replay.notification.no_competition.notification_deps.json
+  custom_pipeline_schedule ........................ results/magellan_comm_dependency_overhead_pp4/D1H4096S2048_single/solver/replay.order.json
+  custom_schedule_trace_dir ....................... None
+  data_cache_path ................................. /home/songxb26/mnist/crosspipi-magellan/runs/magellan_comm_dependency_overhead_pp4/shared_data_cache/D1H4096S2048
+  data_parallel_random_init ....................... False
+  data_parallel_size .............................. 1
+  data_path ....................................... ['/home/songxb26/mnist/crosspipe-old/data/output_text_document_text_document']
+  data_per_class_fraction ......................... 1.0
+  data_sharding ................................... True
+  dataloader_type ................................. single
+  ddp_average_in_collective ....................... False
+  ddp_bucket_size ................................. 100000000000
+  decoder_first_pipeline_num_layers ............... None
+  decoder_last_pipeline_num_layers ................ None
+  decoder_num_layers .............................. None
+  decoder_seq_length .............................. None
+  decoupled_lr .................................... None
+  decoupled_min_lr ................................ None
+  decrease_batch_size_if_needed ................... False
+  defer_embedding_wgrad_compute ................... False
+  deprecated_use_mcore_models ..................... False
+  deterministic_mode .............................. False
+  dino_bottleneck_size ............................ 256
+  dino_freeze_last_layer .......................... 1
+  dino_head_hidden_size ........................... 2048
+  dino_local_crops_number ......................... 10
+  dino_local_img_size ............................. 96
+  dino_norm_last_layer ............................ False
+  dino_teacher_temp ............................... 0.07
+  dino_warmup_teacher_temp ........................ 0.04
+  dino_warmup_teacher_temp_epochs ................. 30
+  disable_straggler_on_startup .................... False
+  dist_ckpt_format_deprecated ..................... None
+  dist_ckpt_strictness ............................ assume_ok_unexpected
+  distribute_saved_activations .................... False
+  distributed_backend ............................. nccl
+  distributed_timeout_minutes ..................... 2
+  dynamic_extra_mem_factor ........................ 0.0
+  dynamic_schedule ................................ None
+  embedding_path .................................. None
+  empty_unused_memory_level ....................... 0
+  enable_cdcpp_scheduler .......................... True
+  enable_ft_package ............................... False
+  enable_one_logger ............................... True
+  enable_prefetch_opt ............................. False
+  encoder_num_layers .............................. 8
+  encoder_pipeline_model_parallel_size ............ 0
+  encoder_seq_length .............................. 2048
+  encoder_tensor_model_parallel_size .............. 0
+  end_weight_decay ................................ 0.1
+  eod_mask_loss ................................... False
+  eval_interval ................................... 1000
+  eval_iters ...................................... 0
+  evidence_data_path .............................. None
+  exit_duration_in_mins ........................... None
+  exit_interval ................................... None
+  exit_on_missing_checkpoint ...................... False
+  exit_signal_handler ............................. False
+  expert_model_parallel_size ...................... 1
+  ffn_hidden_size ................................. 4096
+  finetune ........................................ False
+  fp16 ............................................ True
+  fp16_lm_cross_entropy ........................... False
+  fp32_residual_connection ........................ False
+  fp8 ............................................. None
+  fp8_amax_compute_algo ........................... most_recent
+  fp8_amax_history_len ............................ 1
+  fp8_interval .................................... 1
+  fp8_margin ...................................... 0
+  fp8_param_gather ................................ False
+  fp8_wgrad ....................................... True
+  global_batch_size ............................... 8
+  gradient_accumulation_fusion .................... True
+  group_query_attention ........................... False
+  head_lr_mult .................................... 1.0
+  head_tail_as_one_layer .......................... True
+  hidden_dropout .................................. 0.1
+  hidden_size ..................................... 4096
+  hybrid_attention_ratio .......................... 0.0
+  hybrid_mlp_ratio ................................ 0.0
+  hybrid_override_pattern ......................... None
+  hysteresis ...................................... 2
+  ict_head_size ................................... None
+  ict_load ........................................ None
+  img_h ........................................... 224
+  img_w ........................................... 224
+  indexer_batch_size .............................. 128
+  indexer_log_interval ............................ 1000
+  inference_batch_times_seqlen_threshold .......... 512
+  init_method_std ................................. 0.02
+  init_method_xavier_uniform ...................... False
+  initial_loss_scale .............................. 4294967296
+  iter_per_epoch .................................. 1250
+  kv_channels ..................................... 256
+  lazy_mpu_init ................................... None
+  load ............................................ None
+  local_rank ...................................... 0
+  log_interval .................................... 1
+  log_loss_scale_to_tensorboard ................... True
+  log_memory_to_tensorboard ....................... False
+  log_num_zeros_in_grad ........................... False
+  log_params_norm ................................. False
+  log_progress .................................... False
+  log_straggler ................................... False
+  log_throughput .................................. False
+  log_timers_to_tensorboard ....................... False
+  log_validation_ppl_to_tensorboard ............... False
+  log_world_size_to_tensorboard ................... False
+  logging_level ................................... None
+  loss_scale ...................................... 1.0
+  loss_scale_window ............................... 1000
+  lr .............................................. 0.0003
+  lr_decay_iters .................................. None
+  lr_decay_samples ................................ None
+  lr_decay_style .................................. cosine
+  lr_warmup_fraction .............................. None
+  lr_warmup_init .................................. 0.0
+  lr_warmup_iters ................................. 0
+  lr_warmup_samples ............................... 0
+  lr_wsd_decay_iters .............................. None
+  lr_wsd_decay_samples ............................ None
+  lr_wsd_decay_style .............................. exponential
+  make_vocab_size_divisible_by .................... 128
+  manual_gc ....................................... False
+  manual_gc_eval .................................. True
+  manual_gc_interval .............................. 0
+  mask_factor ..................................... 1.0
+  mask_prob ....................................... 0.15
+  mask_type ....................................... random
+  masked_softmax_fusion ........................... True
+  max_position_embeddings ......................... 2048
+  max_tokens_to_oom ............................... 12000
+  merge_file ...................................... /home/songxb26/mnist/crosspipe-old/data/gpt2-merges.txt
+  micro_batch_size ................................ 1
+  min_loss_scale .................................. 1.0
+  min_lr .......................................... 3e-05
+  mmap_bin_files .................................. True
+  mock_data ....................................... False
+  moe_aux_loss_coeff .............................. 0.0
+  moe_expert_capacity_factor ...................... None
+  moe_extended_tp ................................. False
+  moe_grouped_gemm ................................ False
+  moe_input_jitter_eps ............................ None
+  moe_layer_recompute ............................. False
+  moe_pad_expert_input_to_capacity ................ False
+  moe_per_layer_logging ........................... False
+  moe_router_load_balancing_type .................. aux_loss
+  moe_router_pre_softmax .......................... False
+  moe_router_topk ................................. 2
+  moe_shared_expert_intermediate_size ............. None
+  moe_shared_expert_overlap ....................... False
+  moe_token_dispatcher_type ....................... allgather
+  moe_token_drop_policy ........................... probs
+  moe_use_upcycling ............................... False
+  moe_z_loss_coeff ................................ None
+  nccl_communicator_config_path ................... None
+  no_load_optim ................................... None
+  no_load_rng ..................................... None
+  no_persist_layer_norm ........................... False
+  no_save_optim ................................... None
+  no_save_rng ..................................... None
+  non_persistent_ckpt_type ........................ None
+  non_persistent_global_ckpt_dir .................. None
+  non_persistent_local_ckpt_algo .................. fully_parallel
+  non_persistent_local_ckpt_dir ................... None
+  non_persistent_save_interval .................... None
+  norm_epsilon .................................... 1e-05
+  normalization ................................... LayerNorm
+  num_attention_heads ............................. 16
+  num_channels .................................... 3
+  num_classes ..................................... 1000
+  num_dataset_builder_threads ..................... 1
+  num_dc .......................................... 1
+  num_experts ..................................... None
+  num_layers ...................................... 8
+  num_layers_per_virtual_pipeline_stage ........... 2
+  num_query_groups ................................ 1
+  num_subparts .................................... 1
+  num_workers ..................................... 2
+  one_logger_async ................................ False
+  one_logger_project .............................. megatron-lm
+  one_logger_run_name ............................. None
+  onnx_safe ....................................... None
+  openai_gelu ..................................... False
+  optimizer ....................................... adam
+  output_bert_embeddings .......................... False
+  overlap_grad_reduce ............................. True
+  overlap_p2p_comm ................................ True
+  overlap_param_gather ............................ True
+  overlap_param_gather_with_optimizer_step ........ False
+  override_opt_param_scheduler .................... False
+  params_dtype .................................... torch.float16
+  patch_dim ....................................... 16
+  perform_initialization .......................... True
+  pipeline_model_parallel_size .................... 4
+  pipeline_model_parallel_split_rank .............. None
+  position_embedding_type ......................... learned_absolute
+  pp_stages_per_dc ................................ []
+  pretrained_checkpoint ........................... None
+  profile ......................................... False
+  profile_ranks ................................... [0]
+  profile_step_end ................................ 12
+  profile_step_start .............................. 10
+  qk_layernorm .................................... False
+  query_in_block_prob ............................. 0.1
+  rampup_batch_size ............................... None
+  rank ............................................ 0
+  recompute_granularity ........................... None
+  recompute_method ................................ None
+  recompute_num_layers ............................ None
+  renormalize_blend_weights ....................... False
+  reset_attention_mask ............................ False
+  reset_position_ids .............................. False
+  retriever_report_topk_accuracies ................ []
+  retriever_score_scaling ......................... False
+  retriever_seq_length ............................ 256
+  retro_add_retriever ............................. False
+  retro_attention_gate ............................ 1
+  retro_cyclic_train_iters ........................ None
+  retro_encoder_attention_dropout ................. 0.1
+  retro_encoder_hidden_dropout .................... 0.1
+  retro_encoder_layers ............................ 2
+  retro_num_neighbors ............................. 2
+  retro_num_retrieved_chunks ...................... 2
+  retro_project_dir ............................... None
+  retro_verify_neighbor_count ..................... True
+  rotary_base ..................................... 10000
+  rotary_interleaved .............................. False
+  rotary_percent .................................. 1.0
+  rotary_seq_len_interpolation_factor ............. None
+  s3_cache_path ................................... None
+  sample_rate ..................................... 1.0
+  save ............................................ None
+  save_interval ................................... None
+  scatter_gather_tensors_in_pipeline .............. True
+  seed ............................................ 1234
+  seq_length ...................................... 2048
+  sequence_parallel ............................... False
+  sgd_momentum .................................... 0.9
+  short_seq_prob .................................. 0.1
+  skip_train ...................................... False
+  skipped_train_samples ........................... 0
+  spec ............................................ None
+  split ........................................... 949,50,1
+  squared_relu .................................... False
+  standalone_embedding_stage ...................... False
+  start_weight_decay .............................. 0.1
+  static_schedule ................................. None
+  straggler_ctrlr_port ............................ 65535
+  straggler_minmax_count .......................... 1
+  swiglu .......................................... False
+  swin_backbone_type .............................. tiny
+  tensor_model_parallel_size ...................... 1
+  tensorboard_dir ................................. runs/magellan_comm_dependency_overhead_pp4/h4096_s2048_single_20260730/D1_magellan
+  tensorboard_log_interval ........................ 1
+  tensorboard_queue_size .......................... 1000
+  test_data_path .................................. None
+  test_mode ....................................... False
+  tiktoken_num_special_tokens ..................... 1000
+  tiktoken_pattern ................................ None
+  tiktoken_special_tokens ......................... None
+  timing_log_level ................................ 0
+  timing_log_option ............................... minmax
+  titles_data_path ................................ None
+  tokenizer_model ................................. None
+  tokenizer_type .................................. GPT2BPETokenizer
+  tp_comm_bulk_dgrad .............................. True
+  tp_comm_bulk_wgrad .............................. True
+  tp_comm_overlap ................................. False
+  tp_comm_overlap_ag .............................. True
+  tp_comm_overlap_cfg ............................. None
+  tp_comm_overlap_rs .............................. True
+  tp_comm_overlap_rs_dgrad ........................ False
+  tp_comm_split_ag ................................ True
+  tp_comm_split_rs ................................ True
+  train_data_path ................................. None
+  train_iters ..................................... 20
+  train_samples ................................... None
+  train_sync_interval ............................. None
+  transformer_impl ................................ local
+  transformer_pipeline_model_parallel_size ........ 4
+  untie_embeddings_and_output_weights ............. False
+  use_checkpoint_args ............................. False
+  use_checkpoint_opt_param_scheduler .............. False
+  use_cpu_initialization .......................... None
+  use_dist_ckpt ................................... False
+  use_dist_ckpt_deprecated ........................ False
+  use_distributed_optimizer ....................... True
+  use_flash_attn .................................. False
+  use_legacy_models ............................... False
+  use_one_sent_docs ............................... False
+  use_pytorch_profiler ............................ False
+  use_ring_exchange_p2p ........................... False
+  use_rotary_position_embeddings .................. False
+  use_tp_pp_dp_mapping ............................ False
+  valid_data_path ................................. None
+  variable_seq_lengths ............................ False
+  virtual_pipeline_model_parallel_size ............ 1
+  vision_backbone_type ............................ vit
+  vision_pretraining .............................. False
+  vision_pretraining_type ......................... classify
+  vocab_extra_ids ................................. 0
+  vocab_file ...................................... /home/songxb26/mnist/crosspipe-old/data/gpt2-vocab.json
+  vocab_size ...................................... None
+  wandb_exp_name ..................................
+  wandb_project ...................................
+  wandb_save_dir ..................................
+  weight_decay .................................... 0.1
+  weight_decay_incr_style ......................... constant
+  wgrad_deferral_limit ............................ 0
+  world_size ...................................... 4
+  yaml_cfg ........................................ None
+  zero1_dp_modeling ............................... False
+-------------------- end of arguments ---------------------
+> building GPT2BPETokenizer tokenizer ...
+/home/songxb26/mnist/crosspipi-magellan/megatron/training/tokenizer/gpt2_tokenization.py:159: ResourceWarning: unclosed file <_io.TextIOWrapper name='/home/songxb26/mnist/crosspipe-old/data/gpt2-vocab.json' mode='r' encoding='UTF-8'>
+  self.encoder = json.load(open(vocab_file))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/songxb26/mnist/crosspipi-magellan/megatron/training/tokenizer/gpt2_tokenization.py:164: ResourceWarning: unclosed file <_io.TextIOWrapper name='/home/songxb26/mnist/crosspipe-old/data/gpt2-merges.txt' mode='r' encoding='utf-8'>
+  bpe_data = open(merges_file, encoding='utf-8').read().split('\n')[1:-1]
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+> setting tensorboard ...
+WARNING: one_logger package is required to enable e2e metrics tracking. please go to https://confluence.nvidia.com/display/MLWFO/Package+Repositories for details to install it
+ > padded vocab (size: 50257) with 47 dummy tokens (new size: 50304)
+> initializing torch distributed ...
+/home/songxb26/mnist/crosspipi-magellan/megatron/training/tokenizer/gpt2_tokenization.py:159: ResourceWarning: unclosed file <_io.TextIOWrapper name='/home/songxb26/mnist/crosspipe-old/data/gpt2-vocab.json' mode='r' encoding='UTF-8'>
+  self.encoder = json.load(open(vocab_file))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/songxb26/mnist/crosspipi-magellan/megatron/training/tokenizer/gpt2_tokenization.py:164: ResourceWarning: unclosed file <_io.TextIOWrapper name='/home/songxb26/mnist/crosspipe-old/data/gpt2-merges.txt' mode='r' encoding='utf-8'>
+  bpe_data = open(merges_file, encoding='utf-8').read().split('\n')[1:-1]
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/songxb26/mnist/crosspipi-magellan/megatron/training/tokenizer/gpt2_tokenization.py:159: ResourceWarning: unclosed file <_io.TextIOWrapper name='/home/songxb26/mnist/crosspipe-old/data/gpt2-vocab.json' mode='r' encoding='UTF-8'>
+  self.encoder = json.load(open(vocab_file))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/songxb26/mnist/crosspipi-magellan/megatron/training/tokenizer/gpt2_tokenization.py:164: ResourceWarning: unclosed file <_io.TextIOWrapper name='/home/songxb26/mnist/crosspipe-old/data/gpt2-merges.txt' mode='r' encoding='utf-8'>
+  bpe_data = open(merges_file, encoding='utf-8').read().split('\n')[1:-1]
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+[CDC] Global[0] TP[0] PP[0] DP[0]:    CDC Experiment Info:
+iter [2]: profile
+iter [3]: start testing
+iter [3-19]: latency 0.0, bandwidth 0.0
+iter [20]: end testing
+[CDC] Global[3] TP[0] PP[3] DP[0]:    layer distribution: [1, 2, 2, 1]
+[CDC] Global[2] TP[0] PP[2] DP[0]:    layer distribution: [1, 2, 2, 1]
+[CDC] Global[1] TP[0] PP[1] DP[0]:    layer distribution: [1, 2, 2, 1]
+[CDC] Global[0] TP[0] PP[0] DP[0]:    layer distribution: [1, 2, 2, 1]
+NCCL version 2.23.4+cuda12.6
+NCCL version 2.23.4+cuda12.6
+NCCL version 2.23.4+cuda12.6
+[rank0]:[W730 10:30:13.324399350 ProcessGroupNCCL.cpp:4170] [PG ID 7 PG GUID 27 Rank 0]  using GPU 0 to perform barrier as devices used by this process are currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect.Specify device_ids in barrier() to force use of a particular device,or call init_process_group() with a device_id.
+[rank3]:[W730 10:30:13.324434261 ProcessGroupNCCL.cpp:4170] [PG ID 7 PG GUID 27 Rank 3]  using GPU 3 to perform barrier as devices used by this process are currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect.Specify device_ids in barrier() to force use of a particular device,or call init_process_group() with a device_id.
+[rank2]:[W730 10:30:13.324658390 ProcessGroupNCCL.cpp:4170] [PG ID 7 PG GUID 27 Rank 2]  using GPU 2 to perform barrier as devices used by this process are currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect.Specify device_ids in barrier() to force use of a particular device,or call init_process_group() with a device_id.
+[rank1]:[W730 10:30:13.324693770 ProcessGroupNCCL.cpp:4170] [PG ID 7 PG GUID 27 Rank 1]  using GPU 1 to perform barrier as devices used by this process are currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect.Specify device_ids in barrier() to force use of a particular device,or call init_process_group() with a device_id.
+> initialized tensor model parallel with size 1
+> initialized pipeline model parallel with size 4
+> setting random seeds to 1234 ...
+> compiling dataset index builder ...
+make: Entering directory '/home/songxb26/mnist/crosspipi-magellan/megatron/core/datasets'
+make: Nothing to be done for 'default'.
+make: Leaving directory '/home/songxb26/mnist/crosspipi-magellan/megatron/core/datasets'
+>>> done with dataset index builder. Compilation time: 0.045 seconds
+> compiling and loading fused kernels ...
+>>> done with compiling and loading fused kernels. Compilation time: 0.007 seconds
+[rank2]:[W730 10:30:14.593487462 init.cpp:767] Warning: nvfuser is no longer supported in torch script, use _jit_set_nvfuser_enabled is deprecated and a no-op (function operator())
+[rank0]:[W730 10:30:14.593490594 init.cpp:767] Warning: nvfuser is no longer supported in torch script, use _jit_set_nvfuser_enabled is deprecated and a no-op (function operator())
+[rank1]:[W730 10:30:14.593533615 init.cpp:767] Warning: nvfuser is no longer supported in torch script, use _jit_set_nvfuser_enabled is deprecated and a no-op (function operator())
+[rank3]:[W730 10:30:14.593566002 init.cpp:767] Warning: nvfuser is no longer supported in torch script, use _jit_set_nvfuser_enabled is deprecated and a no-op (function operator())
+time to initialize megatron (seconds): 13.133
+[after megatron is initialized] datetime: 2026-07-30 10:30:22
+building GPT model ...
+ > number of parameters on (tensor, pipeline) model parallel rank (0, 2): 201408512
+ > number of parameters on (tensor, pipeline) model parallel rank (0, 1): 201408512
+ > number of parameters on (tensor, pipeline) model parallel rank (0, 0): 315138048
+ > number of parameters on (tensor, pipeline) model parallel rank (0, 3): 306757632
+[after model, optimizer, and learning rate scheduler are built] datetime: 2026-07-30 10:30:23
+> building train, validation, and test datasets ...
+ > datasets target sizes (minimum size):
+    train:      160
+    validation: 0
+    test:       0
+> building train, validation, and test datasets for GPT ...
+> finished creating GPT datasets ...
+/usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=191407) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  self.pid = os.fork()
+[after dataloaders are built] datetime: 2026-07-30 10:30:23
+done with setup ...
+/usr/local/lib/python3.12/dist-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed._all_gather_base` is a private function and will be deprecated. Please use `torch.distributed.all_gather_into_tensor` instead.
+  return func(*args, **kwargs)
+training ...
+(min, max) time across ranks (ms):
+    model-and-optimizer-setup ......................: (33.97, 411.83)
+    train/valid/test-data-iterators-setup ..........: (57.95, 293.68)
+[before the start of training step] datetime: 2026-07-30 10:30:23
+/home/songxb26/mnist/crosspipi-magellan/megatron/core/tensor_parallel/layers.py:676: UserWarning: async_grad_allreduce is deprecated, not in use anymore and will be fully removed with 0.10.0. Please use allreduce_dgrad instead.
+  warnings.warn(
+/home/songxb26/mnist/crosspipi-magellan/megatron/core/tensor_parallel/layers.py:676: UserWarning: async_grad_allreduce is deprecated, not in use anymore and will be fully removed with 0.10.0. Please use allreduce_dgrad instead.
+  warnings.warn(
+/home/songxb26/mnist/crosspipi-magellan/megatron/core/tensor_parallel/layers.py:676: UserWarning: async_grad_allreduce is deprecated, not in use anymore and will be fully removed with 0.10.0. Please use allreduce_dgrad instead.
+  warnings.warn(
+NCCL version 2.23.4+cuda12.6
+/home/songxb26/mnist/crosspipi-magellan/megatron/core/distributed/param_and_grad_buffer.py:259: FutureWarning: `torch.distributed._reduce_scatter_base` is a private function and will be deprecated. Please use `torch.distributed.reduce_scatter_tensor` instead.
+  torch.distributed._reduce_scatter_base(
+Number of parameters in transformer layers in billions:  0.81
+Number of parameters in embedding layers in billions: 0.21
+Total number of parameters in billions: 1.01
+Number of parameters in most loaded shard in billions: 0.4074
+Number of parameters in other shards in billions: 0.2014
+Theoretical memory footprints: weight and optimizer=6993.60 MB
+ [2026-07-30 10:30:32] iteration        1/      20 | consumed samples:            8 | elapsed time per iteration (ms): 9323.4 | learning rate: 2.983379E-04 | global batch size:     8 | lm loss: 1.158421E+01 | loss scale: 1.0 | grad norm: 29.020 | number of skipped iterations:   0 | number of nan iterations:   0 |
+[Rank 2] (after 1 iterations) memory (MB) | allocated: 4017.81591796875 | max allocated: 8913.30078125 | reserved: 10230.0 | max reserved: 10230.0
+[Rank 0] (after 1 iterations) memory (MB) | allocated: 6156.87841796875 | max allocated: 6950.89453125 | reserved: 10120.0 | max reserved: 10120.0
+/usr/local/lib/python3.12/dist-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed._all_gather_base` is a private function and will be deprecated. Please use `torch.distributed.all_gather_into_tensor` instead.
+  return func(*args, **kwargs)
+[Rank 3] (after 1 iterations) memory (MB) | allocated: 6029.00439453125 | max allocated: 6029.0087890625 | reserved: 8472.0 | max reserved: 8472.0
+[Rank 1] (after 1 iterations) memory (MB) | allocated: 4017.81591796875 | max allocated: 9857.36328125 | reserved: 11210.0 | max reserved: 11210.0
+/home/songxb26/mnist/crosspipi-magellan/megatron/core/tensor_parallel/layers.py:676: UserWarning: async_grad_allreduce is deprecated, not in use anymore and will be fully removed with 0.10.0. Please use allreduce_dgrad instead.
+  warnings.warn(
+ [2026-07-30 10:30:33] iteration        2/      20 | consumed samples:           16 | elapsed time per iteration (ms): 585.3 | learning rate: 2.933926E-04 | global batch size:     8 | lm loss: 2.092794E+01 | loss scale: 1.0 | grad norm: 81.717 | number of skipped iterations:   0 | number of nan iterations:   0 |
+[CDC] Global[2] TP[0] PP[2] DP[0]:    model info: chunk 0 has 201408512 parameters
+[CDC] Global[0] TP[0] PP[0] DP[0]:    model info: chunk 0 has 315138048 parameters
+[CDC] Global[3] TP[0] PP[3] DP[0]:    model info: chunk 0 has 306757632 parameters
+[CDC] Global[2] TP[0] PP[2] DP[0]:    model info :chunk 0 model: DistributedDataParallel(
+  (module): Float16Module(
+    (module): GPTModel(
+      (decoder): TransformerBlock(
+        (layers): ModuleList(
+          (0-1): 2 x TransformerLayer(
+            (input_layernorm): FusedLayerNorm()
+            (self_attention): SelfAttention(
+              (core_attention): DotProductAttention(
+                (scale_mask_softmax): FusedScaleMaskSoftmax()
+                (attention_dropout): Dropout(p=0.1, inplace=False)
+              )
+              (linear_proj): RowParallelLinear()
+              (linear_qkv): ColumnParallelLinear()
+              (q_layernorm): IdentityOp()
+              (k_layernorm): IdentityOp()
+            )
+            (pre_cross_attn_layernorm): IdentityOp()
+            (cross_attention): IdentityOp()
+            (cross_attn_bda): IdentityFuncOp()
+            (pre_mlp_layernorm): FusedLayerNorm()
+            (mlp): MLP(
+              (linear_fc1): ColumnParallelLinear()
+              (linear_fc2): RowParallelLinear()
+            )
+          )
+        )
+      )
+    )
+  )
+)
+[CDC] Global[0] TP[0] PP[0] DP[0]:    model info :chunk 0 model: DistributedDataParallel(
+  (module): Float16Module(
+    (module): GPTModel(
+      (embedding): LanguageModelEmbedding(
+        (word_embeddings): VocabParallelEmbedding()
+        (position_embeddings): Embedding(2048, 4096)
+        (embedding_dropout): Dropout(p=0.1, inplace=False)
+      )
+      (decoder): TransformerBlock(
+        (layers): ModuleList(
+          (0): TransformerLayer(
+            (input_layernorm): FusedLayerNorm()
+            (self_attention): SelfAttention(
+              (core_attention): DotProductAttention(
+                (scale_mask_softmax): FusedScaleMaskSoftmax()
+                (attention_dropout): Dropout(p=0.1, inplace=False)
+              )
+              (linear_proj): RowParallelLinear()
+              (linear_qkv): ColumnParallelLinear()
+              (q_layernorm): IdentityOp()
+              (k_layernorm): IdentityOp()
+            )
+            (pre_cross_attn_layernorm): IdentityOp()
+            (cross_attention): IdentityOp()
+            (cross_attn_bda): IdentityFuncOp()
+            (pre_mlp_layernorm): FusedLayerNorm()
+            (mlp): MLP(
+              (linear_fc1): ColumnParallelLinear()
+              (linear_fc2): RowParallelLinear()
+            )
+          )
+        )
+      )
+    )
+  )
+)
+[CDC] Global[2] TP[0] PP[2] DP[0]:    model info: chunk 0 has 2 layers, vocab embedding: False, lm head: False
+[CDC] Global[1] TP[0] PP[1] DP[0]:    model info: chunk 0 has 201408512 parameters
+[CDC] Global[0] TP[0] PP[0] DP[0]:    model info: chunk 0 has 1 layers, vocab embedding: True, lm head: False
+[CDC] Global[3] TP[0] PP[3] DP[0]:    model info :chunk 0 model: DistributedDataParallel(
+  (module): Float16Module(
+    (module): GPTModel(
+      (decoder): TransformerBlock(
+        (layers): ModuleList(
+          (0): TransformerLayer(
+            (input_layernorm): FusedLayerNorm()
+            (self_attention): SelfAttention(
+              (core_attention): DotProductAttention(
+                (scale_mask_softmax): FusedScaleMaskSoftmax()
+                (attention_dropout): Dropout(p=0.1, inplace=False)
+              )
+              (linear_proj): RowParallelLinear()
+              (linear_qkv): ColumnParallelLinear()
+              (q_layernorm): IdentityOp()
+              (k_layernorm): IdentityOp()
+            )
+            (pre_cross_attn_layernorm): IdentityOp()
+            (cross_attention): IdentityOp()
+            (cross_attn_bda): IdentityFuncOp()
+            (pre_mlp_layernorm): FusedLayerNorm()
+            (mlp): MLP(
+              (linear_fc1): ColumnParallelLinear()
+              (linear_fc2): RowParallelLinear()
+            )
+          )
+        )
+        (final_layernorm): LayerNorm()
+      )
+      (output_layer): ColumnParallelLinear()
+    )
+  )
+)
+[CDC] Global[3] TP[0] PP[3] DP[0]:    model info: chunk 0 has 1 layers, vocab embedding: False, lm head: True
+[CDC] Global[1] TP[0] PP[1] DP[0]:    model info :chunk 0 model: DistributedDataParallel(
+  (module): Float16Module(
+    (module): GPTModel(
+      (decoder): TransformerBlock(
+        (layers): ModuleList(
+          (0-1): 2 x TransformerLayer(
+            (input_layernorm): FusedLayerNorm()
+            (self_attention): SelfAttention(
+              (core_attention): DotProductAttention(
+                (scale_mask_softmax): FusedScaleMaskSoftmax()
+                (attention_dropout): Dropout(p=0.1, inplace=False)
+              )
+              (linear_proj): RowParallelLinear()
+              (linear_qkv): ColumnParallelLinear()
+              (q_layernorm): IdentityOp()
+              (k_layernorm): IdentityOp()
+            )
+            (pre_cross_attn_layernorm): IdentityOp()
+            (cross_attention): IdentityOp()
+            (cross_attn_bda): IdentityFuncOp()
+            (pre_mlp_layernorm): FusedLayerNorm()
+            (mlp): MLP(
+              (linear_fc1): ColumnParallelLinear()
+              (linear_fc2): RowParallelLinear()
+            )
+          )
+        )
+      )
+    )
+  )
+)
+[CDC] Global[1] TP[0] PP[1] DP[0]:    model info: chunk 0 has 2 layers, vocab embedding: False, lm head: False
+[CDC] Global[3] TP[0] PP[3] DP[0]:    cdc_compute_profile_dict: {(0, 0, 0): [0.023563710041344166, 5128393728, 6028149248], (1, 0, 0): [0.022656776942312717, 6061703680, 6995013632], (2, 0, 0): [0.02271367236971855, 7028568064, 7960829440], (0, 0, 1): [0.03317006956785917, 8027938304, 7094628864], (3, 0, 0): [0.02327093854546547, 7128183296, 8061493248], (1, 0, 1): [0.03319689631462097, 8095047680, 7161738240], (4, 0, 0): [0.02278961520642042, 7161738240, 8095048192], (2, 0, 1): [0.033279962837696075, 8128602624, 7196341760], (3, 0, 1): [0.033431846648454666, 7196341760, 6263032320], (5, 0, 0): [0.0227153105661273, 6263032320, 7196342272], (4, 0, 1): [0.033057983964681625, 7196342272, 6263032832], (6, 0, 0): [0.022767171263694763, 6263032832, 7196342784], (5, 0, 1): [0.03318074718117714, 7196342784, 6263033344], (6, 0, 1): [0.033091988414525986, 6263033344, 5329723904], (7, 0, 0): [0.022799895144999027, 5329723904, 6263033856], (7, 0, 1): [0.033659120090305805, 6263033856, 5329724416]}
+[CDC] Global[3] TP[0] PP[3] DP[0]:    cdc_base_memory: 5128393728
+[CDC] Global[3] TP[0] PP[3] DP[0]:    cdc_chunk_parameters: {0: 306757632}
+[CDC] Global[3] TP[0] PP[3] DP[0]:    cdc_dp_comm_profiles: [[[0, 0], [0, 0], [0, 0], [0, 0]]]
+[CDC] Global[3] TP[0] PP[3] DP[0]:    cdc_layer_info: {0: (False, True, 1)}
+[CDC] Global[2] TP[0] PP[2] DP[0]:    cdc_compute_profile_dict: {(0, 0, 0): [0.015574973076581955, 3440906240, 4430827520], (1, 0, 0): [0.015346935950219631, 4464381952, 5487857664], (2, 0, 0): [0.01536831445991993, 5521412096, 6544887808], (3, 0, 0): [0.015374877490103245, 6578442240, 7601917952], (4, 0, 0): [0.01536465622484684, 7635472384, 8658948096], (5, 0, 0): [0.015294999815523624, 8692502528, 9715978240], (6, 0, 0): [0.015366275794804096, 9783087104, 10806562816], (0, 0, 1): [0.02661650814116001, 10840117248, 9816641536], (7, 0, 0): [0.015466414391994476, 9850195968, 10873671680], (1, 0, 1): [0.02670908346772194, 10873671680, 9850195968], (2, 0, 1): [0.026166479103267193, 9883750400, 8860274688], (3, 0, 1): [0.02619464509189129, 8893829120, 7870353408], (4, 0, 1): [0.026095030829310417, 7903907840, 6880432128], (5, 0, 1): [0.026231369003653526, 6913986560, 5890510848], (6, 0, 1): [0.026244690641760826, 5924065280, 4900589568], (7, 0, 1): [0.026369279250502586, 4934144000, 3910668288]}
+[CDC] Global[2] TP[0] PP[2] DP[0]:    cdc_base_memory: 3440906240
+[CDC] Global[2] TP[0] PP[2] DP[0]:    cdc_chunk_parameters: {0: 201408512}
+[CDC] Global[2] TP[0] PP[2] DP[0]:    cdc_dp_comm_profiles: [[[0, 0], [0, 0], [0, 0], [0, 0]]]
+[CDC] Global[2] TP[0] PP[2] DP[0]:    cdc_layer_info: {0: (False, False, 2)}
+[CDC] Global[1] TP[0] PP[1] DP[0]:    cdc_compute_profile_dict: {(0, 0, 0): [0.015466196462512016, 3440906240, 4430827520], (1, 0, 0): [0.01528487354516983, 4464381952, 5487857664], (2, 0, 0): [0.015294800512492657, 5521412096, 6544887808], (3, 0, 0): [0.015278618782758713, 6578442240, 7601917952], (4, 0, 0): [0.015500163659453392, 7635472384, 8658948096], (5, 0, 0): [0.015296753495931625, 8692502528, 9715978240], (6, 0, 0): [0.015396561473608017, 9749532672, 10773008384], (7, 0, 0): [0.015359306707978249, 10806562816, 11830038528], (0, 0, 1): [0.027199539355933666, 11863592960, 10840117248], (1, 0, 1): [0.02672144677489996, 10873671680, 9850195968], (2, 0, 1): [0.02675571758300066, 9883750400, 8860274688], (3, 0, 1): [0.02660114038735628, 8893829120, 7870353408], (4, 0, 1): [0.026665620505809784, 7903907840, 6880432128], (5, 0, 1): [0.026628793217241764, 6913986560, 5890510848], (6, 0, 1): [0.02725934609770775, 5924065280, 4900589568], (7, 0, 1): [0.026765746995806694, 4934144000, 3910668288]}
+[CDC] Global[1] TP[0] PP[1] DP[0]:    cdc_base_memory: 3440906240
+[CDC] Global[1] TP[0] PP[1] DP[0]:    cdc_chunk_parameters: {0: 201408512}
+[CDC] Global[1] TP[0] PP[1] DP[0]:    cdc_dp_comm_profiles: [[[0, 0], [0, 0], [0, 0], [0, 0]]]
+[CDC] Global[1] TP[0] PP[1] DP[0]:    cdc_layer_info: {0: (False, False, 2)}
+[CDC] Global[0] TP[0] PP[0] DP[0]:    cdc_compute_profile_dict: {(0, 0, 0): [0.009155726060271263, 5195403264, 5740728320], (1, 0, 0): [0.008835609070956707, 5757505536, 6302830592], (2, 0, 0): [0.008822215721011162, 6319607808, 6864932864], (3, 0, 0): [0.009317771531641483, 6881710080, 7427035136], (4, 0, 0): [0.00935953389853239, 7443812352, 7989137408], (5, 0, 0): [0.009279145859181881, 8005914624, 8551239680], (6, 0, 0): [0.00942515954375267, 8568016896, 9113341952], (7, 0, 0): [0.008992239832878113, 9130119168, 9675444224], (0, 0, 1): [0.016552998684346676, 9725775872, 9163673600], (1, 0, 1): [0.01633793767541647, 9197228032, 8635125760], (2, 0, 1): [0.016354109160602093, 8668680192, 8106577920], (3, 0, 1): [0.016525828279554844, 8140132352, 7578030080], (4, 0, 1): [0.016405025497078896, 7611584512, 7049482240], (5, 0, 1): [0.016422292217612267, 7083036672, 6520934400], (6, 0, 1): [0.016260790638625622, 6554488832, 5992386560], (7, 0, 1): [0.016411302611231804, 6025940992, 5463838720]}
+[CDC] Global[0] TP[0] PP[0] DP[0]:    cdc_comm_profiles: ([0.00044103077379986644, 0.00013171788305044174, 0.00019046702072955668, 0.00012909472570754588], [0.00013260552077554166, 0.00014786608517169952, 0.0004029230331070721, 0.00013225898146629333], [2.15434562550465e-11, 2.182298612651845e-11, 2.1761854471225028e-11, 2.1816224174409093e-11], [2.1811710423924602e-11, 2.1813119019387095e-11, 2.153228463586121e-11, 2.1847728487456308e-11])
+[CDC] Global[0] TP[0] PP[0] DP[0]:    cdc_base_memory: 5195403264
+[CDC] Global[0] TP[0] PP[0] DP[0]:    cdc_chunk_parameters: {0: 315138048}
+[CDC] Global[0] TP[0] PP[0] DP[0]:    cdc_dp_comm_profiles: [[[0, 0], [0, 0], [0, 0], [0, 0]]]
+[CDC] Global[0] TP[0] PP[0] DP[0]:    cdc_layer_info: {0: (True, False, 1)}
+ [2026-07-30 10:30:34] iteration        3/      20 | consumed samples:           24 | elapsed time per iteration (ms): 815.2 | learning rate: 2.852859E-04 | global batch size:     8 | lm loss: 1.328512E+01 | loss scale: 1.0 | grad norm: 6.786 | number of skipped iterations:   0 | number of nan iterations:   0 |
+[CDC] Global[0] TP[0] PP[0] DP[0]:    Delay Config Update: latency 0.0 F stage, 0.0 seconds; bandwidth 0.0 F stage, 0.0 seconds
+/usr/local/lib/python3.12/dist-packages/torch/cuda/memory.py:369: FutureWarning: torch.cuda.reset_max_memory_allocated now calls torch.cuda.reset_peak_memory_stats, which resets /all/ peak memory stats.
+  warnings.warn(
+ [2026-07-30 10:30:34] iteration        4/      20 | consumed samples:           32 | elapsed time per iteration (ms): 589.7 | learning rate: 2.742173E-04 | global batch size:     8 | lm loss: 2.299574E+01 | loss scale: 1.0 | grad norm: 20.057 | number of skipped iterations:   0 | number of nan iterations:   0 |
+ [2026-07-30 10:30:35] iteration        5/      20 | consumed samples:           40 | elapsed time per iteration (ms): 585.3 | learning rate: 2.604594E-04 | global batch size:     8 | lm loss: 2.096822E+01 | loss scale: 1.0 | grad norm: 18.098 | number of skipped iterations:   0 | number of nan iterations:   0 |
+ [2026-07-30 10:30:36] iteration        6/      20 | consumed samples:           48 | elapsed time per iteration (ms): 586.8 | learning rate: 2.443510E-04 | global batch size:     8 | lm loss: 1.502975E+01 | loss scale: 1.0 | grad norm: 8.604 | number of skipped iterations:   0 | number of nan iterations:   0 |
+ [2026-07-30 10:30:36] iteration        7/      20 | consumed samples:           56 | elapsed time per iteration (ms): 582.6 | learning rate: 2.262887E-04 | global batch size:     8 | lm loss: 1.312826E+01 | loss scale: 1.0 | grad norm: 6.206 | number of skipped iterations:   0 | number of nan iterations:   0 |
+ [2026-07-30 10:30:37] iteration        8/      20 | consumed samples:           64 | elapsed time per iteration (ms): 584.2 | learning rate: 2.067173E-04 | global batch size:     8 | lm loss: 1.117096E+01 | loss scale: 1.0 | grad norm: 4.837 | number of skipped iterations:   0 | number of nan iterations:   0 |
+ [2026-07-30 10:30:37] iteration        9/      20 | consumed samples:           72 | elapsed time per iteration (ms): 581.7 | learning rate: 1.861187E-04 | global batch size:     8 | lm loss: 1.045470E+01 | loss scale: 1.0 | grad norm: 1.443 | number of skipped iterations:   0 | number of nan iterations:   0 |
+ [2026-07-30 10:30:38] iteration       10/      20 | consumed samples:           80 | elapsed time per iteration (ms): 583.2 | learning rate: 1.650000E-04 | global batch size:     8 | lm loss: 1.035625E+01 | loss scale: 1.0 | grad norm: 1.126 | number of skipped iterations:   0 | number of nan iterations:   0 |
+ [2026-07-30 10:30:39] iteration       11/      20 | consumed samples:           88 | elapsed time per iteration (ms): 583.2 | learning rate: 1.438813E-04 | global batch size:     8 | lm loss: 1.022987E+01 | loss scale: 1.0 | grad norm: 1.092 | number of skipped iterations:   0 | number of nan iterations:   0 |
+ [2026-07-30 10:30:39] iteration       12/      20 | consumed samples:           96 | elapsed time per iteration (ms): 582.9 | learning rate: 1.232827E-04 | global batch size:     8 | lm loss: 9.800980E+00 | loss scale: 1.0 | grad norm: 1.002 | number of skipped iterations:   0 | number of nan iterations:   0 |
+ [2026-07-30 10:30:40] iteration       13/      20 | consumed samples:          104 | elapsed time per iteration (ms): 579.5 | learning rate: 1.037113E-04 | global batch size:     8 | lm loss: 9.500326E+00 | loss scale: 1.0 | grad norm: 0.888 | number of skipped iterations:   0 | number of nan iterations:   0 |
+ [2026-07-30 10:30:40] iteration       14/      20 | consumed samples:          112 | elapsed time per iteration (ms): 578.8 | learning rate: 8.564899E-05 | global batch size:     8 | lm loss: 9.389805E+00 | loss scale: 1.0 | grad norm: 0.841 | number of skipped iterations:   0 | number of nan iterations:   0 |
+ [2026-07-30 10:30:41] iteration       15/      20 | consumed samples:          120 | elapsed time per iteration (ms): 580.6 | learning rate: 6.954058E-05 | global batch size:     8 | lm loss: 9.161415E+00 | loss scale: 1.0 | grad norm: 0.799 | number of skipped iterations:   0 | number of nan iterations:   0 |
+ [2026-07-30 10:30:41] iteration       16/      20 | consumed samples:          128 | elapsed time per iteration (ms): 580.2 | learning rate: 5.578271E-05 | global batch size:     8 | lm loss: 8.997145E+00 | loss scale: 1.0 | grad norm: 0.745 | number of skipped iterations:   0 | number of nan iterations:   0 |
+ [2026-07-30 10:30:42] iteration       17/      20 | consumed samples:          136 | elapsed time per iteration (ms): 579.8 | learning rate: 4.471412E-05 | global batch size:     8 | lm loss: 8.950266E+00 | loss scale: 1.0 | grad norm: 0.747 | number of skipped iterations:   0 | number of nan iterations:   0 |
+ [2026-07-30 10:30:43] iteration       18/      20 | consumed samples:          144 | elapsed time per iteration (ms): 575.8 | learning rate: 3.660737E-05 | global batch size:     8 | lm loss: 9.007622E+00 | loss scale: 1.0 | grad norm: 0.739 | number of skipped iterations:   0 | number of nan iterations:   0 |
+ [2026-07-30 10:30:43] iteration       19/      20 | consumed samples:          152 | elapsed time per iteration (ms): 580.2 | learning rate: 3.166207E-05 | global batch size:     8 | lm loss: 9.056817E+00 | loss scale: 1.0 | grad norm: 0.716 | number of skipped iterations:   0 | number of nan iterations:   0 |
+ [2026-07-30 10:30:44] iteration       20/      20 | consumed samples:          160 | elapsed time per iteration (ms): 724.2 | learning rate: 3.000000E-05 | global batch size:     8 | lm loss: 8.818702E+00 | loss scale: 1.0 | grad norm: 0.677 | number of skipped iterations:   0 | number of nan iterations:   0 |
+[exiting program at iteration 20] datetime: 2026-07-30 10:30:44
+/home/songxb26/mnist/crosspipi-magellan/megatron/core/optimizer/distrib_optimizer.py:557: UserWarning: `DistributedOptimizer.disable_pre_hook` will be deprecated in a future release. Use `DistributedDataParallel.disable_forward_pre_hook` directly.
+  warnings.warn(
+/usr/lib/python3.12/tempfile.py:1075: ResourceWarning: Implicitly cleaning up <TemporaryDirectory '/tmp/tmpzwg9tk1x'>
+  _warnings.warn(warn_message, ResourceWarning)
+[rank2]:[W730 10:30:45.817287770 ProcessGroupNCCL.cpp:1294] Warning: WARNING: process group has NOT been destroyed before we destruct ProcessGroupNCCL. On normal program exit, the application should call destroy_process_group to ensure that any pending NCCL operations have finished in this process. In rare cases this process can exit before this point and block the progress of another member of the process group. This constraint has always been present,  but this warning has only been added since PyTorch 2.4 (function operator())
+[rank1]:[W730 10:30:45.879998612 ProcessGroupNCCL.cpp:1294] Warning: WARNING: process group has NOT been destroyed before we destruct ProcessGroupNCCL. On normal program exit, the application should call destroy_process_group to ensure that any pending NCCL operations have finished in this process. In rare cases this process can exit before this point and block the progress of another member of the process group. This constraint has always been present,  but this warning has only been added since PyTorch 2.4 (function operator())
+[rank0]:[W730 10:30:45.971707079 ProcessGroupNCCL.cpp:1294] Warning: WARNING: process group has NOT been destroyed before we destruct ProcessGroupNCCL. On normal program exit, the application should call destroy_process_group to ensure that any pending NCCL operations have finished in this process. In rare cases this process can exit before this point and block the progress of another member of the process group. This constraint has always been present,  but this warning has only been added since PyTorch 2.4 (function operator())
+[rank3]:[W730 10:30:45.210126012 ProcessGroupNCCL.cpp:1294] Warning: WARNING: process group has NOT been destroyed before we destruct ProcessGroupNCCL. On normal program exit, the application should call destroy_process_group to ensure that any pending NCCL operations have finished in this process. In rare cases this process can exit before this point and block the progress of another member of the process group. This constraint has always been present,  but this warning has only been added since PyTorch 2.4 (function operator())

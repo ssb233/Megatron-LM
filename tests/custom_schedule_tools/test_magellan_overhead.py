@@ -187,12 +187,50 @@ def test_experiment_matrix_includes_moe_n8_positive_case():
             "experts": 8,
             "topk": 2,
         },
+        "D1S2048": {
+            "hidden": 1024,
+            "ffn": 4096,
+            "heads": 16,
+            "seq": 2048,
+            "mbs": 1,
+            "gbs": 8,
+            "experts": None,
+        },
+        "M3S2048": {
+            "hidden": 1024,
+            "ffn": 4096,
+            "heads": 16,
+            "seq": 2048,
+            "mbs": 1,
+            "gbs": 8,
+            "experts": 8,
+            "topk": 2,
+        },
+        "D1H4096S2048": {
+            "hidden": 4096,
+            "ffn": 4096,
+            "heads": 16,
+            "seq": 2048,
+            "mbs": 1,
+            "gbs": 8,
+            "experts": None,
+        },
+        "M3H4096S2048": {
+            "hidden": 4096,
+            "ffn": 4096,
+            "heads": 16,
+            "seq": 2048,
+            "mbs": 1,
+            "gbs": 8,
+            "experts": 8,
+            "topk": 2,
+        },
     }
 
     assert all(
         configs[config_id]["experts"] == 8
         and configs[config_id]["topk"] == 2
-        for config_id in ("M1", "M2", "M3")
+        for config_id in ("M1", "M2", "M3", "M3S2048", "M3H4096S2048")
     )
 
 
