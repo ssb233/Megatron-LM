@@ -1,0 +1,259 @@
+{
+  "cases": {
+    "D1": {
+      "calibration": {
+        "adjacent_p2p_seconds": [
+          0.0001477894384152023,
+          0.00014137869811747805,
+          0.00018042728061118396
+        ],
+        "comm_units": 0.02723856077109382,
+        "middle_stage_forward_seconds": [
+          0.005383927375078201,
+          0.005467559210956097
+        ],
+        "t_comm_ref_seconds": 0.0001477894384152023,
+        "t_f_ref_seconds": 0.005425743293017149
+      },
+      "config": {
+        "experts": null,
+        "ffn": 4096,
+        "gbs": 8,
+        "heads": 16,
+        "hidden": 1024,
+        "mbs": 1,
+        "seq": 256
+      },
+      "fallback_used": false,
+      "mean_overhead_percent": -7.265874719717558,
+      "median_overhead_percent": -10.439210693825608,
+      "microbatches": 8,
+      "model": "Dense",
+      "peak_memory_mib": 1246.0078125,
+      "profile": "compute-heavy",
+      "schedule": {
+        "acyclic": true,
+        "dependency_count": 6,
+        "operation_count": 112,
+        "raw_dependency_count": 46,
+        "remote_gloo_dependency_count": 3,
+        "sat_makespan_seconds": 0.17992849908303468,
+        "sat_makespan_units": 33.162,
+        "solver_status": "OPTIMAL"
+      },
+      "statistics": {
+        "1F1B": {
+          "count": 14,
+          "max_ms": 323.6,
+          "mean_ms": 299.4428571428571,
+          "median_ms": 314.20000000000005,
+          "min_ms": 238.1,
+          "stdev_ms": 26.66437306986218
+        },
+        "Magellan": {
+          "count": 14,
+          "max_ms": 310.0,
+          "mean_ms": 277.6857142857143,
+          "median_ms": 281.4,
+          "min_ms": 211.7,
+          "stdev_ms": 25.987655564868522
+        }
+      }
+    },
+    "D2": {
+      "calibration": {
+        "adjacent_p2p_seconds": [
+          0.0002967966011055978,
+          0.00021865026883460814,
+          0.00045733509250567295
+        ],
+        "comm_units": 0.05413523523387437,
+        "middle_stage_forward_seconds": [
+          0.0055094193667173386,
+          0.005455587059259415
+        ],
+        "t_comm_ref_seconds": 0.0002967966011055978,
+        "t_f_ref_seconds": 0.005482503212988377
+      },
+      "config": {
+        "experts": null,
+        "ffn": 6144,
+        "gbs": 32,
+        "heads": 24,
+        "hidden": 1536,
+        "mbs": 2,
+        "seq": 512
+      },
+      "fallback_used": false,
+      "mean_overhead_percent": 10.08356921417981,
+      "median_overhead_percent": 7.256215026144397,
+      "microbatches": 16,
+      "model": "Dense",
+      "peak_memory_mib": 2070.3848,
+      "profile": "communication-richer",
+      "schedule": {
+        "acyclic": true,
+        "dependency_count": 46,
+        "operation_count": 224,
+        "raw_dependency_count": 114,
+        "remote_gloo_dependency_count": 21,
+        "sat_makespan_seconds": 0.3142790141813457,
+        "sat_makespan_units": 57.324,
+        "solver_status": "OPTIMAL"
+      },
+      "statistics": {
+        "1F1B": {
+          "count": 14,
+          "max_ms": 588.7,
+          "mean_ms": 529.9285714285714,
+          "median_ms": 545.05,
+          "min_ms": 456.6,
+          "stdev_ms": 43.72350940541341
+        },
+        "Magellan": {
+          "count": 14,
+          "max_ms": 610.7,
+          "mean_ms": 583.3642857142858,
+          "median_ms": 584.6,
+          "min_ms": 540.3,
+          "stdev_ms": 19.09283422337603
+        }
+      }
+    },
+    "M1": {
+      "calibration": {
+        "adjacent_p2p_seconds": [
+          0.00020117554458920495,
+          0.0001465831910536508,
+          0.00015157934603848844
+        ],
+        "comm_units": 0.011597033176659216,
+        "middle_stage_forward_seconds": [
+          0.01288178563117981,
+          0.01325927022844553
+        ],
+        "t_comm_ref_seconds": 0.00015157934603848844,
+        "t_f_ref_seconds": 0.01307052792981267
+      },
+      "config": {
+        "experts": 8,
+        "ffn": 4096,
+        "gbs": 16,
+        "heads": 16,
+        "hidden": 1024,
+        "mbs": 1,
+        "seq": 256,
+        "topk": 2
+      },
+      "fallback_used": false,
+      "mean_overhead_percent": 7.38637810311904,
+      "median_overhead_percent": 7.79875688987921,
+      "microbatches": 16,
+      "model": "MoE",
+      "peak_memory_mib": 2739.7373,
+      "profile": "compute-heavy",
+      "schedule": {
+        "acyclic": true,
+        "dependency_count": 46,
+        "operation_count": 224,
+        "raw_dependency_count": 114,
+        "remote_gloo_dependency_count": 21,
+        "sat_makespan_seconds": 0.7459611700102687,
+        "sat_makespan_units": 57.072,
+        "solver_status": "OPTIMAL"
+      },
+      "statistics": {
+        "1F1B": {
+          "count": 14,
+          "max_ms": 897.5,
+          "mean_ms": 841.6071428571429,
+          "median_ms": 852.7,
+          "min_ms": 687.8,
+          "stdev_ms": 53.35696139839985
+        },
+        "Magellan": {
+          "count": 14,
+          "max_ms": 958.3,
+          "mean_ms": 903.7714285714286,
+          "median_ms": 919.2,
+          "min_ms": 816.7,
+          "stdev_ms": 46.334460154427134
+        }
+      }
+    },
+    "M2": {
+      "calibration": {
+        "adjacent_p2p_seconds": [
+          0.00029677384372917004,
+          0.0001723563218547497,
+          0.00017223531676791026
+        ],
+        "comm_units": 0.012224931976484605,
+        "middle_stage_forward_seconds": [
+          0.013916919007897377,
+          0.014280591160058975
+        ],
+        "t_comm_ref_seconds": 0.0001723563218547497,
+        "t_f_ref_seconds": 0.014098755083978176
+      },
+      "config": {
+        "experts": 8,
+        "ffn": 3072,
+        "gbs": 32,
+        "heads": 12,
+        "hidden": 768,
+        "mbs": 2,
+        "seq": 512,
+        "topk": 2
+      },
+      "fallback_used": false,
+      "mean_overhead_percent": 3.6484203836569584,
+      "median_overhead_percent": 3.6028170653628955,
+      "microbatches": 16,
+      "model": "MoE",
+      "peak_memory_mib": 1573.3877,
+      "profile": "communication-richer",
+      "schedule": {
+        "acyclic": true,
+        "dependency_count": 46,
+        "operation_count": 224,
+        "raw_dependency_count": 114,
+        "remote_gloo_dependency_count": 21,
+        "sat_makespan_seconds": 0.8046441501528026,
+        "sat_makespan_units": 57.072,
+        "solver_status": "OPTIMAL"
+      },
+      "statistics": {
+        "1F1B": {
+          "count": 14,
+          "max_ms": 886.9,
+          "mean_ms": 854.1857142857143,
+          "median_ms": 859.05,
+          "min_ms": 778.3,
+          "stdev_ms": 26.823292321954277
+        },
+        "Magellan": {
+          "count": 14,
+          "max_ms": 958.3,
+          "mean_ms": 885.35,
+          "median_ms": 890.0,
+          "min_ms": 773.6,
+          "stdev_ms": 47.18698891725263
+        }
+      }
+    }
+  },
+  "experiment": {
+    "communication_delay_injection": false,
+    "data_parallelism": 1,
+    "date": "2026-07-30",
+    "hardware": "4x Tesla V100-SXM2-32GB, single node",
+    "layers": 8,
+    "measured_iterations": "6-19",
+    "pipeline_parallelism": 4,
+    "recomputation": false,
+    "samples_per_arm": 14,
+    "tensor_parallelism": 1,
+    "topology": "logical star: 0-1, 1-2, 1-3"
+  }
+}

@@ -1,0 +1,1 @@
+completed config=D2 mode=MAGELLAN

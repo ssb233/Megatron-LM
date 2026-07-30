@@ -1,0 +1,18 @@
+{
+  "ls": null,
+  "makespan_units": 57.324,
+  "phase": "cp_sat",
+  "r_save_scaled": [
+    100,
+    100,
+    100,
+    100
+  ],
+  "schedule_sha256": "83e69ccba22b941c54ee98af6079be7b9ab70e418632224234d241f12d501eb2",
+  "solver": {
+    "branches": 0,
+    "conflicts": 0,
+    "wall_time_s": 1.8719487000000001
+  },
+  "total_layers": null
+}
