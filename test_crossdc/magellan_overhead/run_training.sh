@@ -7,13 +7,21 @@ RUN_DIR="${3:-}"
 ORDER_FILE="${4:-}"
 DEPENDENCY_FILE="${5:-}"
 
-case "${CONFIG_ID}" in
-  D1|D2|M1|M2) ;;
-  *)
-    echo "unknown configuration '${CONFIG_ID}'" >&2
-    exit 2
-    ;;
-esac
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_FILE="${SCRIPT_DIR}/configs.json"
+PYTHON="/home/songxb26/mnist/.venvs/crosspipi-magellan/bin/python"
+
+if ! "${PYTHON}" - "${CONFIG_FILE}" "${CONFIG_ID}" <<'PY'
+import json
+import sys
+
+configs = json.load(open(sys.argv[1], encoding="utf-8"))
+raise SystemExit(0 if sys.argv[2] in configs else 1)
+PY
+then
+  echo "unknown configuration '${CONFIG_ID}'" >&2
+  exit 2
+fi
 
 case "${MODE}" in
   CALIBRATE|1F1B) ;;
@@ -38,10 +46,7 @@ if [[ -z "${RUN_DIR}" ]]; then
   exit 2
 fi
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
-CONFIG_FILE="${SCRIPT_DIR}/configs.json"
-PYTHON="/home/songxb26/mnist/.venvs/crosspipi-magellan/bin/python"
 DATA_ROOT="/home/songxb26/mnist/crosspipe-old/data"
 DATA_PREFIX="${DATA_ROOT}/output_text_document_text_document"
 VOCAB_FILE="${DATA_ROOT}/gpt2-vocab.json"

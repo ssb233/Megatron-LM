@@ -207,6 +207,18 @@ def test_launcher_rejects_unknown_config_before_torchrun(tmp_path):
     assert "unknown configuration" in result.stderr
 
 
+def test_launcher_accepts_every_config_declared_in_json(tmp_path):
+    result = subprocess.run(
+        ["bash", str(LAUNCHER), "M3", "INVALID", str(tmp_path)],
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 2
+    assert "unknown mode 'INVALID'" in result.stderr
+    assert "unknown configuration" not in result.stderr
+
+
 def test_magellan_launcher_requires_both_schedule_files(tmp_path):
     result = subprocess.run(
         ["bash", str(LAUNCHER), "D1", "MAGELLAN", str(tmp_path)],
