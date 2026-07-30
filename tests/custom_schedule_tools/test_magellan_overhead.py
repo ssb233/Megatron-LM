@@ -135,7 +135,7 @@ LAUNCHER = REPO_ROOT / "test_crossdc/magellan_overhead/run_training.sh"
 CONFIGS = REPO_ROOT / "test_crossdc/magellan_overhead/configs.json"
 
 
-def test_experiment_matrix_has_two_dense_and_two_moe_configs():
+def test_experiment_matrix_includes_moe_n8_positive_case():
     configs = json.loads(CONFIGS.read_text(encoding="utf-8"))
 
     assert configs == {
@@ -177,12 +177,22 @@ def test_experiment_matrix_has_two_dense_and_two_moe_configs():
             "experts": 8,
             "topk": 2,
         },
+        "M3": {
+            "hidden": 1024,
+            "ffn": 4096,
+            "heads": 16,
+            "seq": 256,
+            "mbs": 1,
+            "gbs": 8,
+            "experts": 8,
+            "topk": 2,
+        },
     }
 
     assert all(
         configs[config_id]["experts"] == 8
         and configs[config_id]["topk"] == 2
-        for config_id in ("M1", "M2")
+        for config_id in ("M1", "M2", "M3")
     )
 
 

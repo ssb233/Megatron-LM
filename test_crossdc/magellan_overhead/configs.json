@@ -36,5 +36,15 @@
     "gbs": 32,
     "experts": 8,
     "topk": 2
+  },
+  "M3": {
+    "hidden": 1024,
+    "ffn": 4096,
+    "heads": 16,
+    "seq": 256,
+    "mbs": 1,
+    "gbs": 8,
+    "experts": 8,
+    "topk": 2
   }
 }
