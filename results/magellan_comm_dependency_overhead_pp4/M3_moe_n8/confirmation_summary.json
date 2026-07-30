@@ -1,0 +1,164 @@
+{
+  "aggregate": {
+    "1F1B": {
+      "count": 56,
+      "max_ms": 503.7,
+      "mean_ms": 412.7892857142857,
+      "median_ms": 435.1,
+      "min_ms": 324.3,
+      "stdev_ms": 49.9044602800607
+    },
+    "Magellan": {
+      "count": 56,
+      "max_ms": 480.2,
+      "mean_ms": 427.10357142857146,
+      "median_ms": 426.20000000000005,
+      "min_ms": 364.4,
+      "stdev_ms": 19.63901464187794
+    },
+    "accepted_by_preregistered_median_gate": true,
+    "mean_overhead_percent": 3.467697978041384,
+    "median_overhead_percent": -2.0455067800505544
+  },
+  "calibration": {
+    "adjacent_p2p_seconds": [
+      0.00014624001232732553,
+      0.00014203036334947683,
+      0.00017628160549065797
+    ],
+    "comm_units": 0.01068607243552988,
+    "middle_stage_forward_seconds": [
+      0.013707751408219337,
+      0.013662456534802914
+    ],
+    "t_comm_ref_seconds": 0.00014624001232732553,
+    "t_f_ref_seconds": 0.013685103971511126
+  },
+  "config_id": "M3",
+  "interpretation": {
+    "mean_result": "Magellan slower",
+    "median_result": "Magellan faster",
+    "note": "M3 passes the preregistered pooled-median gate, but only two of four paired medians favor Magellan and 1F1B is bimodal.",
+    "stable_pairwise_superiority": false
+  },
+  "model": {
+    "attention_heads": 16,
+    "data_parallelism": 1,
+    "experts": 8,
+    "ffn_hidden": 4096,
+    "global_batch_size": 8,
+    "hidden": 1024,
+    "layers": 8,
+    "micro_batch_size": 1,
+    "microbatches": 8,
+    "pipeline_parallelism": 4,
+    "recomputation": false,
+    "sequence_length": 256,
+    "tensor_parallelism": 1,
+    "topk": 2,
+    "type": "MoE"
+  },
+  "pairs": {
+    "A_magellan_first": {
+      "1F1B": {
+        "count": 14,
+        "max_ms": 455.6,
+        "mean_ms": 361.74285714285713,
+        "median_ms": 349.7,
+        "min_ms": 343.9,
+        "stdev_ms": 33.78282937291607
+      },
+      "Magellan": {
+        "count": 14,
+        "max_ms": 460.3,
+        "mean_ms": 426.3071428571429,
+        "median_ms": 423.05,
+        "min_ms": 410.0,
+        "stdev_ms": 12.184066788904415
+      },
+      "execution_order": "Magellan->1F1B",
+      "median_overhead_percent": 20.975121532742346
+    },
+    "B_1f1b_first": {
+      "1F1B": {
+        "count": 14,
+        "max_ms": 499.7,
+        "mean_ms": 444.90714285714284,
+        "median_ms": 444.85,
+        "min_ms": 357.9,
+        "stdev_ms": 30.441203460636515
+      },
+      "Magellan": {
+        "count": 14,
+        "max_ms": 456.1,
+        "mean_ms": 422.5,
+        "median_ms": 422.65,
+        "min_ms": 383.4,
+        "stdev_ms": 22.984409431679484
+      },
+      "execution_order": "1F1B->Magellan",
+      "median_overhead_percent": -4.990446217826239
+    },
+    "C_magellan_first": {
+      "1F1B": {
+        "count": 14,
+        "max_ms": 465.3,
+        "mean_ms": 398.92857142857144,
+        "median_ms": 401.0,
+        "min_ms": 324.3,
+        "stdev_ms": 51.00964356142606
+      },
+      "Magellan": {
+        "count": 14,
+        "max_ms": 454.2,
+        "mean_ms": 423.9785714285714,
+        "median_ms": 423.15,
+        "min_ms": 364.4,
+        "stdev_ms": 21.905081200889953
+      },
+      "execution_order": "Magellan->1F1B",
+      "median_overhead_percent": 5.523690773067336
+    },
+    "screen_1f1b_first": {
+      "1F1B": {
+        "count": 14,
+        "max_ms": 503.7,
+        "mean_ms": 445.5785714285714,
+        "median_ms": 444.4,
+        "min_ms": 406.5,
+        "stdev_ms": 24.182357795951752
+      },
+      "Magellan": {
+        "count": 14,
+        "max_ms": 480.2,
+        "mean_ms": 435.62857142857143,
+        "median_ms": 438.1,
+        "min_ms": 396.3,
+        "stdev_ms": 19.050274723293803
+      },
+      "execution_order": "1F1B->Magellan",
+      "median_overhead_percent": -1.4176417641764028
+    }
+  },
+  "runtime": {
+    "communication_delay_injection": false,
+    "hardware": "4x Tesla V100-SXM2-32GB, single node",
+    "logical_topology": "0-1, 1-2, 1-3",
+    "measured_iterations": "6-19",
+    "num_dc": 1,
+    "peak_memory_mib": 2739.7373046875,
+    "runs_per_arm": 4,
+    "samples_per_run": 14
+  },
+  "schedule": {
+    "acyclic": true,
+    "canonical_sha256": "bc41868d5223cc82bc6e44bdd09c990306ce92d9eae9b728f701888c0b8ac136",
+    "dependency_count": 6,
+    "operation_count": 112,
+    "raw_dependency_count": 46,
+    "remote_gloo_dependency_count": 3,
+    "sat_makespan_seconds": 0.4525116479219869,
+    "sat_makespan_units": 33.066,
+    "solver_status": "OPTIMAL"
+  }
+}

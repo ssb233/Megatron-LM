@@ -23,6 +23,7 @@ iteration 时间。Magellan 版本严格执行求解器产生的通信依赖；�
 | D2 | Dense | 1536 | 512 | 2 | 16 | - | 545.05 | 584.60 | +7.26% | 46/21 |
 | M1 | MoE | 1024 | 256 | 1 | 16 | 8/top-2 | 852.70 | 919.20 | +7.80% | 46/21 |
 | M2 | MoE | 768 | 512 | 2 | 16 | 8/top-2 | 859.05 | 890.00 | +3.60% | 46/21 |
+| M3* | MoE | 1024 | 256 | 1 | 8 | 8/top-2 | 435.10 | 426.20 | -2.05% | 6/3 |
 
 `extra/remote deps` 中，前者是排除单通信通道天然顺序后的额外依赖数，后者是
 起点和终点 rank 均不同、需要 Gloo control message 的依赖数。所有调度均通过
@@ -37,6 +38,7 @@ iteration。
 | D2 | 2070.4 | 0.05413524 | OPTIMAL | 114/46/21 |
 | M1 | 2739.7 | 0.01159703 | OPTIMAL | 114/46/21 |
 | M2 | 1573.4 | 0.01222493 | OPTIMAL | 114/46/21 |
+| M3 | 2739.7 | 0.01068607 | OPTIMAL | 46/6/3 |
 
 三组新增配置的峰值显存均远低于 28 GiB 门限，未触发备用配置。D1 峰值取其正式
 基线日志，其余三组取各自四次迭代的 preflight 日志。`comm_units` 是实测相邻
@@ -47,6 +49,8 @@ P2P 通信时间与中间 stage 前向计算时间之比；求解中传播时延
 - `summary.csv`：每个配置的一行聚合统计。
 - `samples.csv`：8 个 arm 的 112 个原始 iteration 样本。
 - `summary.json`：参数、统计、校准和依赖数量的机器可读汇总。
+- 根目录 `summary.csv`、`summary.json` 和 `samples.csv` 保留原 D1–M2
+  单次运行矩阵；M3 的重复实验使用 `M3_moe_n8/` 下的独立汇总，避免混合统计口径。
 - 每个配置的 `solver/`：`replay.order.json`、通信依赖 JSON、求解摘要和验证结果。
 - 每个配置的 `calibration/`：实测计算/通信基准以及归一化 `comm_units`。
 - `1f1b/` 与 `magellan_dependency/`（D1 为 `pilot_20260730/raw/`）：
@@ -57,3 +61,11 @@ P2P 通信时间与中间 stage 前向计算时间之比；求解中传播时延
 两种调度改变了 microbatch 计算事件的提交顺序，因此 dropout/MoE 路由等随机
 算子的 RNG 消耗顺序也可能改变；loss 应检查为有限且趋势正常，不要求两个 arm
 逐 iteration 完全相同。当前实验关注训练可完成性与 iteration 开销。
+
+## M3 重复 MoE 实验
+
+`M3*` 不是单次运行结果，而是每个 arm 四次运行、每个 arm 56 个样本，并平衡了
+`1F1B→Magellan` 和 `Magellan→1F1B` 两种启动顺序。聚合中位数显示 Magellan
+改善 2.05%，但聚合均值慢 3.47%；四对中只有两对的中位数更快，因为 1F1B
+呈现明显的双峰运行状态。完整且非选择性的结果见 `M3_moe_n8/README.md` 和
+`M3_moe_n8/confirmation_summary.json`。

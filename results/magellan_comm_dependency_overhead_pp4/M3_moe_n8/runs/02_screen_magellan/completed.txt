@@ -1,0 +1,1 @@
+completed config=M3 mode=MAGELLAN
