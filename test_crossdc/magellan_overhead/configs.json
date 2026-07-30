@@ -9,32 +9,32 @@
     "experts": null
   },
   "D2": {
-    "hidden": 512,
-    "ffn": 2048,
-    "heads": 8,
+    "hidden": 1536,
+    "ffn": 6144,
+    "heads": 24,
     "seq": 512,
     "mbs": 2,
-    "gbs": 16,
+    "gbs": 32,
     "experts": null
   },
   "M1": {
-    "hidden": 768,
-    "ffn": 3072,
-    "heads": 12,
+    "hidden": 1024,
+    "ffn": 4096,
+    "heads": 16,
     "seq": 256,
     "mbs": 1,
-    "gbs": 8,
-    "experts": 4,
+    "gbs": 16,
+    "experts": 8,
     "topk": 2
   },
   "M2": {
-    "hidden": 384,
-    "ffn": 1536,
-    "heads": 6,
+    "hidden": 768,
+    "ffn": 3072,
+    "heads": 12,
     "seq": 512,
     "mbs": 2,
-    "gbs": 16,
-    "experts": 4,
+    "gbs": 32,
+    "experts": 8,
     "topk": 2
   }
 }

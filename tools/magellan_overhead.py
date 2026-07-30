@@ -62,7 +62,7 @@ def derive_calibration(profile: dict) -> dict:
 def parse_iteration_times(
     text: str,
     first_iteration: int = 6,
-    last_iteration: int = 20,
+    last_iteration: int = 19,
 ) -> list[dict]:
     """Parse a closed interval of Megatron iteration-time log records."""
 
@@ -343,7 +343,7 @@ def _parser() -> argparse.ArgumentParser:
 
     summary = subparsers.add_parser("summarize")
     summary.add_argument("--logs", nargs="+", required=True)
-    summary.add_argument("--expected-samples", type=int, default=15)
+    summary.add_argument("--expected-samples", type=int, default=14)
     summary.add_argument("--output", required=True)
     summary.set_defaults(handler=_summarize_command)
     return parser

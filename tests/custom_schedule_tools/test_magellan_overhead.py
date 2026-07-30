@@ -36,7 +36,7 @@ def test_calibration_uses_middle_stage_forward_and_adjacent_p2p_medians():
     assert result["comm_units"] == pytest.approx(0.00022 / 0.006)
 
 
-def test_iteration_parser_keeps_exactly_iterations_6_through_20():
+def test_iteration_parser_keeps_exactly_iterations_6_through_19():
     text = "\n".join(
         f"iteration {iteration}/ 20 | "
         f"elapsed time per iteration (ms): {100 + iteration}.0 |"
@@ -45,9 +45,9 @@ def test_iteration_parser_keeps_exactly_iterations_6_through_20():
 
     rows = parse_iteration_times(text)
 
-    assert [row["iteration"] for row in rows] == list(range(6, 21))
+    assert [row["iteration"] for row in rows] == list(range(6, 20))
     assert rows[0]["milliseconds"] == 106.0
-    assert len(rows) == 15
+    assert len(rows) == 14
 
 
 def _one_microbatch_two_stage_order():
@@ -149,35 +149,41 @@ def test_experiment_matrix_has_two_dense_and_two_moe_configs():
             "experts": None,
         },
         "D2": {
-            "hidden": 512,
-            "ffn": 2048,
-            "heads": 8,
+            "hidden": 1536,
+            "ffn": 6144,
+            "heads": 24,
             "seq": 512,
             "mbs": 2,
-            "gbs": 16,
+            "gbs": 32,
             "experts": None,
         },
         "M1": {
-            "hidden": 768,
-            "ffn": 3072,
-            "heads": 12,
+            "hidden": 1024,
+            "ffn": 4096,
+            "heads": 16,
             "seq": 256,
             "mbs": 1,
-            "gbs": 8,
-            "experts": 4,
+            "gbs": 16,
+            "experts": 8,
             "topk": 2,
         },
         "M2": {
-            "hidden": 384,
-            "ffn": 1536,
-            "heads": 6,
+            "hidden": 768,
+            "ffn": 3072,
+            "heads": 12,
             "seq": 512,
             "mbs": 2,
-            "gbs": 16,
-            "experts": 4,
+            "gbs": 32,
+            "experts": 8,
             "topk": 2,
         },
     }
+
+    assert all(
+        configs[config_id]["experts"] == 8
+        and configs[config_id]["topk"] == 2
+        for config_id in ("M1", "M2")
+    )
 
 
 def test_launcher_rejects_unknown_config_before_torchrun(tmp_path):
