@@ -26,7 +26,7 @@
 
 **Files:**
 - Create: `tools/magellan_overhead.py`
-- Create: `tests/unit_tests/pipeline_parallel/test_magellan_overhead.py`
+- Create: `tests/custom_schedule_tools/test_magellan_overhead.py`
 
 **Interfaces:**
 - Consumes: CrossPipe profile `total.json`, Magellan order/dependency JSON, and Megatron `train.log`.
@@ -85,7 +85,7 @@ Run:
 
 ```bash
 /home/songxb26/mnist/.venvs/crosspipi-magellan/bin/python -m pytest \
-  tests/unit_tests/pipeline_parallel/test_magellan_overhead.py -q
+  tests/custom_schedule_tools/test_magellan_overhead.py -q
 ```
 
 Expected: import or missing-function failure from `tools.magellan_overhead`.
@@ -121,7 +121,7 @@ Run the Task 1 pytest command and require exit code 0.
 
 ```bash
 git add tools/magellan_overhead.py \
-  tests/unit_tests/pipeline_parallel/test_magellan_overhead.py
+  tests/custom_schedule_tools/test_magellan_overhead.py
 git commit -m "test: add Magellan overhead experiment utilities"
 ```
 
