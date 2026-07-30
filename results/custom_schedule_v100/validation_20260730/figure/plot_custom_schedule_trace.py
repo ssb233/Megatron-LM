@@ -61,6 +61,107 @@ def load_rows() -> list[dict]:
     return rows
 
 
+def build_control_latency_samples(
+    rows: list[dict],
+    payload: dict,
+    sender_cutoff_us: float = 600.0,
+) -> list[dict]:
+    formal = {
+        (int(sample["iteration"]), int(sample["dependency_id"])): sample
+        for sample in payload["samples"]
+        if 3 <= int(sample["iteration"]) <= 10
+    }
+    sends = {
+        (int(row["iteration"]), int(row["dependency_id"])): row
+        for row in rows
+        if row.get("event") == "signal_send_start"
+        and (int(row["iteration"]), int(row["dependency_id"])) in formal
+    }
+    if len(formal) != 56 or set(sends) != set(formal):
+        raise ValueError(
+            "expected 56 identical formal dependency keys, found "
+            f"{len(formal)} metrics and {len(sends)} sends"
+        )
+
+    def single(description: str, predicate) -> dict:
+        matches = [row for row in rows if predicate(row)]
+        if len(matches) != 1:
+            raise ValueError(
+                f"expected one {description}, found {len(matches)}"
+            )
+        return matches[0]
+
+    samples = []
+    for key in sorted(formal):
+        iteration, dependency_id = key
+        send = sends[key]
+        sender_rank = int(send["rank"])
+        receiver_rank = int(send["peer_rank"])
+        complete = single(
+            f"trigger completion for {key}",
+            lambda row: (
+                row.get("event") == "comm_complete"
+                and int(row.get("iteration", -1)) == iteration
+                and int(row.get("rank", -1)) == sender_rank
+                and row.get("operation") == send["trigger"]
+                and int(row["timestamp_ns"]) <= int(send["timestamp_ns"])
+            ),
+        )
+        receive = single(
+            f"signal receive for {key}",
+            lambda row: (
+                row.get("event") == "signal_recv"
+                and int(row.get("iteration", -1)) == iteration
+                and int(row.get("dependency_id", -1)) == dependency_id
+                and int(row.get("rank", -1)) == receiver_rank
+                and int(row.get("peer_rank", -1)) == sender_rank
+            ),
+        )
+        target_submit = single(
+            f"target submission for {key}",
+            lambda row: (
+                row.get("event") == "target_submit"
+                and int(row.get("iteration", -1)) == iteration
+                and int(row.get("rank", -1)) == receiver_rank
+                and row.get("operation") == send["target"]
+                and dependency_id in row.get("dependency_ids", [])
+            ),
+        )
+        timestamps = [
+            int(complete["timestamp_ns"]),
+            int(send["timestamp_ns"]),
+            int(receive["timestamp_ns"]),
+            int(target_submit["timestamp_ns"]),
+        ]
+        if timestamps != sorted(timestamps):
+            raise ValueError(
+                f"control-path timestamp ordering violation for {key}"
+            )
+        sender_us = (timestamps[1] - timestamps[0]) / 1_000.0
+        samples.append(
+            {
+                "iteration": iteration,
+                "dependency_id": dependency_id,
+                "sender_complete_to_send_us": sender_us,
+                "gloo_ready_to_recv_us": float(
+                    formal[key][
+                        "both_endpoints_ready_to_signal_recv_us"
+                    ]
+                ),
+                "receiver_recv_to_submit_us": float(
+                    formal[key]["signal_recv_to_target_submit_us"]
+                ),
+                "sender_included_in_plot": (
+                    sender_us <= sender_cutoff_us
+                ),
+            }
+        )
+
+    if sum(not row["sender_included_in_plot"] for row in samples) != 1:
+        raise ValueError("expected exactly one sender-side tail sample")
+    return samples
+
+
 def pair_compute(rows: list[dict], iteration: int) -> list[dict]:
     starts = {}
     intervals = []
