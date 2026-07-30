@@ -1,0 +1,10 @@
+mode=C_VIS
+run_dir=/home/songxb26/mnist/crosspipi-magellan/runs/custom_schedule_v100/visualization_delay_20260730/C_visualization_only_delay
+order_file=/home/songxb26/mnist/crosspipi-magellan/tests/unit_tests/pipeline_parallel/fixtures/replay_order_pp4_n8_star.json
+dependency_file=/home/songxb26/mnist/crosspipi-magellan/tests/unit_tests/pipeline_parallel/fixtures/notification_deps_pp4_n8_star.json
+command_python=/home/songxb26/mnist/.venvs/crosspipi-magellan/bin/python
+num_dc=4
+pp_stages_per_dc=1 1 1 1
+delay_pairs=0,0.5 0,1.0
+exp_test_iters=8
+pythonpath=/home/songxb26/mnist/pytorch-corsspipe

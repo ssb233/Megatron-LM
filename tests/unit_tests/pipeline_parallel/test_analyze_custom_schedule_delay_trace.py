@@ -1,4 +1,7 @@
 import json
+from pathlib import Path
+import subprocess
+import sys
 
 import pytest
 
@@ -191,3 +194,25 @@ def test_plotter_emits_publication_formats_and_caption(tmp_path):
         encoding="utf-8"
     )
     assert "Artificial transfer delay for visualization only" in svg
+    assert "1.0 x F" in svg
+    assert "脳" not in svg
+    assert "碌" not in svg
+    assert all(line == line.rstrip() for line in svg.splitlines())
+    source_csv = (output / "figure_source_data.csv").read_bytes()
+    assert b"\r\n" not in source_csv
+
+
+def test_plotter_cli_runs_directly_from_outside_repository(tmp_path):
+    repository = Path(__file__).resolve().parents[3]
+    plotter = repository / "tools" / "plot_custom_schedule_delay_trace.py"
+
+    completed = subprocess.run(
+        [sys.executable, str(plotter), "--help"],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "--summary" in completed.stdout
