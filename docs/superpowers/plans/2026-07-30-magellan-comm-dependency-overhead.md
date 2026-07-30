@@ -1,400 +1,298 @@
-# Magellan Communication-Dependency Overhead Implementation Plan
+# Remaining Magellan Communication-Dependency Experiments Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Produce four PP=4 Dense/MoE comparisons that measure steady-state iteration time for CrossPipe 1F1B versus a configuration-specific Magellan order with mandatory Gloo communication dependencies.
+**Goal:** Retain the completed D1 result and produce D2, M1, and M2 PP=4 comparisons of CrossPipe 1F1B versus a configuration-specific Magellan schedule with mandatory Gloo communication dependencies.
 
-**Architecture:** A small pure-Python utility validates schedules, derives solver calibration from CrossPipe `total.json`, parses Megatron iteration logs, and writes reproducible statistics. A single shell launcher owns all model/runtime arguments, while calibration, local Magellan solving, repeated server runs, and result collection remain separate phases with explicit artifacts.
+**Architecture:** The existing launcher owns all shared Megatron arguments and reads one exact configuration from `configs.json`. Each new configuration passes a four-iteration 1F1B memory/calibration gate, is solved locally with its measured compute/communication ratio, is validated on the server, and then runs one 20-iteration 1F1B arm and one 20-iteration Magellan arm. Existing pure-Python utilities validate schedules and generate statistics from committed raw logs.
 
-**Tech Stack:** Python 3.12, pytest, Bash, PyTorch/Megatron-Core, torchrun, Gloo/NCCL, OR-Tools CP-SAT, JSON/CSV.
+**Tech Stack:** Python 3.12, pytest, Bash, PyTorch/Megatron-Core, torchrun, NCCL, Gloo, OR-Tools CP-SAT, JSON/CSV.
 
 ## Global Constraints
 
 - Server repository: `/home/songxb26/mnist/crosspipi-magellan`, branch `crosspipe`.
+- Server Python: `/home/songxb26/mnist/.venvs/crosspipi-magellan/bin/python`.
 - Dataset: `/home/songxb26/mnist/crosspipe-old/data`.
+- Local solver checkout: `C:\Users\86159\Desktop\MAGELLAN`.
+- Local solver Python: `C:\Users\86159\Desktop\MAGELLAN\.venv_run\Scripts\python.exe`.
 - Hardware: one node, four V100 32 GB GPUs; PP=4, TP=1, DP=1.
-- Runtime communication uses original NCCL only: `num_dc=1` and delay factors exactly `0,0`.
-- Magellan always loads both a configuration-specific order JSON and a non-empty communication-dependency JSON.
-- No activation recomputation, synthetic payload, nsys capture, JSONL trace, per-event flush, or custom delay-injection PyTorch build.
-- Each measured arm uses three independent launches, 20 iterations per launch, discards iterations 1-5, and retains iterations 6-20.
-- Solver topology is the logical star `0-1, 1-2, 1-3`; CP-SAT uses link-exclusive communication with `r_save=1`, `mem=8`, and no rate allocation.
-- Performance results are descriptive; no preselected overhead threshold determines success.
+- D1 remains unchanged: hidden 1024, FFN 4096, heads 16, sequence 256, MBS 1, N/GBS 8.
+- D2: hidden 1536, FFN 6144, heads 24, sequence 512, MBS 2, N 16, GBS 32.
+- M1: hidden 1024, FFN 4096, heads 16, sequence 256, MBS 1, N 16, GBS 16, eight experts, top-2.
+- M2: hidden 768, FFN 3072, heads 12, sequence 512, MBS 2, N 16, GBS 32, eight experts, top-2.
+- All models use eight transformer layers, FP16, one virtual chunk, and no activation recomputation.
+- Runtime uses original NCCL only: `num_dc=1`, delay factors `0,0`, and no synthetic payload.
+- Solver topology is `0-1, 1-2, 1-3`; CP-SAT uses link exclusivity, `r_save=1`, `mem=8`, no rate allocation, and N=16 for all new solves.
+- Every Magellan arm must load both its own order JSON and a dependency JSON with at least one extra edge.
+- Each arm runs once for 20 iterations; statistics use iterations 6 through 19.
+- Preserve unrelated server worktree changes. Stage and commit only files belonging to the task being committed.
 
 ---
 
-### Task 1: Add calibration, validation, and timing utilities
+### Task 1: Update the approved matrix and timing window with TDD
 
 **Files:**
-- Create: `tools/magellan_overhead.py`
-- Create: `tests/custom_schedule_tools/test_magellan_overhead.py`
+- Modify: `test_crossdc/magellan_overhead/configs.json`
+- Modify: `test_crossdc/magellan_overhead/run_training.sh`
+- Modify: `tools/magellan_overhead.py`
+- Modify: `tests/custom_schedule_tools/test_magellan_overhead.py`
 
 **Interfaces:**
-- Consumes: CrossPipe profile `total.json`, Magellan order/dependency JSON, and Megatron `train.log`.
-- Produces:
-  - `derive_calibration(profile: dict) -> dict`
-  - `validate_schedule(order: dict, dependencies: object, microbatches: int, stages: int) -> dict`
-  - `parse_iteration_times(text: str, first_iteration: int = 6, last_iteration: int = 20) -> list[dict]`
-  - `summarize(values: list[float]) -> dict`
-  - CLI subcommands `calibrate`, `validate`, and `summarize`.
+- Consumes: configuration ID `D1|D2|M1|M2`.
+- Produces: exact approved model arguments and default timing rows for iterations 6–19.
 
-- [ ] **Step 1: Write failing unit tests**
+- [ ] **Step 1: Change tests first**
 
-Cover these exact cases:
+Update the expected matrix to:
 
 ```python
-def test_calibration_uses_middle_stage_forward_and_adjacent_p2p_medians():
-    profile = {
-        "T_F": [[0.003, 0.005, 0.007, 0.004]],
-        "T_alpha": [
-            [0, 0.00010, 0, 0],
-            [0.00010, 0, 0.00020, 0],
-            [0, 0.00020, 0, 0.00030],
-            [0, 0, 0.00030, 0],
-        ],
-        "T_bw": [
-            [0, 0.00001, 0, 0],
-            [0.00001, 0, 0.00002, 0],
-            [0, 0.00002, 0, 0.00003],
-            [0, 0, 0.00003, 0],
-        ],
-    }
-    result = derive_calibration(profile)
-    assert result["t_f_ref_seconds"] == pytest.approx(0.006)
-    assert result["t_comm_ref_seconds"] == pytest.approx(0.00022)
-    assert result["comm_units"] == pytest.approx(0.00022 / 0.006)
-
-
-def test_iteration_parser_keeps_exactly_iterations_6_through_20():
-    text = "\n".join(
-        f"iteration {i}/ 20 | elapsed time per iteration (ms): {100+i}.0 |"
-        for i in range(1, 21)
-    )
-    rows = parse_iteration_times(text)
-    assert [row["iteration"] for row in rows] == list(range(6, 21))
-    assert len(rows) == 15
-
-
-def test_schedule_validator_rejects_nonempty_dependency_cycle():
-    with pytest.raises(ValueError, match="cycle"):
-        validate_schedule(cyclic_order, cyclic_dependencies, 1, 2)
+{
+    "D1": {"hidden": 1024, "ffn": 4096, "heads": 16, "seq": 256,
+           "mbs": 1, "gbs": 8, "experts": None},
+    "D2": {"hidden": 1536, "ffn": 6144, "heads": 24, "seq": 512,
+           "mbs": 2, "gbs": 32, "experts": None},
+    "M1": {"hidden": 1024, "ffn": 4096, "heads": 16, "seq": 256,
+           "mbs": 1, "gbs": 16, "experts": 8, "topk": 2},
+    "M2": {"hidden": 768, "ffn": 3072, "heads": 12, "seq": 512,
+           "mbs": 2, "gbs": 32, "experts": 8, "topk": 2},
+}
 ```
 
-- [ ] **Step 2: Run tests and verify RED**
+Rename the parser test to `test_iteration_parser_keeps_exactly_iterations_6_through_19` and require `list(range(6, 20))` with 14 rows. Remove the obsolete top-1 pre-softmax launcher test. Add an assertion that both MoE configurations use `topk == 2` and `experts == 8`.
 
-Run:
+- [ ] **Step 2: Run tests and verify RED**
 
 ```bash
 /home/songxb26/mnist/.venvs/crosspipi-magellan/bin/python -m pytest \
   tests/custom_schedule_tools/test_magellan_overhead.py -q
 ```
 
-Expected: import or missing-function failure from `tools.magellan_overhead`.
+Expected: matrix and iteration-window assertions fail against the old implementation.
 
-- [ ] **Step 3: Implement the pure functions and CLI**
+- [ ] **Step 3: Implement the approved configuration**
 
-Implementation requirements:
+Update `configs.json`, set `parse_iteration_times(..., last_iteration=19)`, set the summarize CLI default expected sample count to 14, and write `measured_iterations=6-19` in `run.info`. Remove the unreachable `MOE_TOPK == 1` pre-softmax branch.
 
-```python
-ITERATION_RE = re.compile(
-    r"iteration\s+(?P<iteration>\d+)/\s*\d+.*?"
-    r"elapsed time per iteration \(ms\):\s*(?P<ms>[0-9.]+)"
-)
+- [ ] **Step 4: Run focused validation and verify GREEN**
+
+```bash
+/home/songxb26/mnist/.venvs/crosspipi-magellan/bin/python -m pytest \
+  tests/custom_schedule_tools/test_magellan_overhead.py -q
+bash -n test_crossdc/magellan_overhead/run_training.sh
+git diff --check
 ```
 
-`derive_calibration` must use `median(T_F[0][1:3])` and the median of
-`T_alpha[i][i+1] + T_bw[i][i+1]` for `i=0,1,2`. It must reject missing,
-non-finite, or non-positive values.
+Expected: all tests pass and both shell/diff checks exit 0.
 
-`validate_schedule` must normalize the repository's supported dependency JSON
-shapes, require at least one dependency, verify endpoint existence, verify all
-`F_m_s` and `B_m_s` operations for `m=0..N-1` and `s=0..S-1`, and run a
-topological sort over order edges plus dependency edges.
-
-`summarize` must return count, mean, median, sample standard deviation,
-minimum, and maximum.
-
-- [ ] **Step 4: Run focused tests and verify GREEN**
-
-Run the Task 1 pytest command and require exit code 0.
-
-- [ ] **Step 5: Commit Task 1**
+- [ ] **Step 5: Commit only Task 1 files**
 
 ```bash
 git add tools/magellan_overhead.py \
-  tests/custom_schedule_tools/test_magellan_overhead.py
-git commit -m "test: add Magellan overhead experiment utilities"
+  tests/custom_schedule_tools/test_magellan_overhead.py \
+  test_crossdc/magellan_overhead/configs.json \
+  test_crossdc/magellan_overhead/run_training.sh
+git commit -m "exp: finalize remaining overhead configurations"
 ```
 
 ---
 
-### Task 2: Add one controlled Dense/MoE launcher
+### Task 2: Preflight and calibrate D2, M1, and M2
 
 **Files:**
-- Create: `test_crossdc/magellan_overhead/run_training.sh`
-- Create: `test_crossdc/magellan_overhead/configs.json`
+- Create runtime artifacts: `runs/magellan_comm_dependency_overhead_pp4/preflight_20260730/<ID>/`
+- Create compact results: `results/magellan_comm_dependency_overhead_pp4/<config-dir>/calibration/`
 
 **Interfaces:**
-- Consumes: `<config-id> <CALIBRATE|1F1B|MAGELLAN> <run-dir> [order-json dependency-json]`.
-- Produces: `run.info`, `train.log`, profile `total.json`, and normal Megatron logs in the requested run directory.
+- Consumes: Task 1 launcher in `CALIBRATE` mode.
+- Produces: one valid `total.json`, `run.info`, `calibration.json`, and memory decision per configuration.
 
-- [ ] **Step 1: Add the four exact model configurations**
+- [ ] **Step 1: Run D2 preflight on port 29650**
 
-`configs.json` must encode:
+Set `CDC_OVERHEAD_TRAIN_ITERS=4`, `CDC_OVERHEAD_EXP_TEST_ITERS=1`, and run D2 `CALIBRATE`. Require four iterations, zero skip/NaN, and no OOM or timeout.
 
-```json
-{
-  "D1": {"hidden": 1024, "ffn": 4096, "heads": 16, "seq": 256, "mbs": 1, "gbs": 8, "experts": null},
-  "D2": {"hidden": 512, "ffn": 2048, "heads": 8, "seq": 512, "mbs": 2, "gbs": 16, "experts": null},
-  "M1": {"hidden": 768, "ffn": 3072, "heads": 12, "seq": 256, "mbs": 1, "gbs": 8, "experts": 4, "topk": 2},
-  "M2": {"hidden": 384, "ffn": 1536, "heads": 6, "seq": 512, "mbs": 2, "gbs": 16, "experts": 4, "topk": 2}
-}
-```
+- [ ] **Step 2: Enforce the D2 28 GiB gate**
 
-- [ ] **Step 2: Implement argument validation and shared runtime arguments**
+Read the maximum `max allocated` value from all ranks in `train.log`. If it is at least 28672 MiB or the run OOMs, change only D2 MBS/GBS to 1/16, rerun the Task 1 RED/GREEN cycle for that approved fallback, and repeat the preflight.
 
-The launcher must use the existing virtual environment and dataset paths,
-`CUDA_VISIBLE_DEVICES=0,1,2,3`, eight layers, `train-iters=20`, fixed
-`--loss-scale 1`, FP16, no recomputation flag, `cdc_profile_iter=2`,
-`cdc_exp_test_start_iter=3`, and `cdc_exp_per_cfg_test_iters=17`.
+- [ ] **Step 3: Run and gate M1 on port 29651**
 
-MoE configurations add:
+Use the same four-iteration mode. If memory reaches 28672 MiB or OOMs, change M1 hidden/FFN/heads to 768/3072/12 while retaining MBS 1, GBS/N 16, eight experts, and top-2; rerun tests before repeating.
 
-```text
---num-experts 4
---moe-router-topk 2
---expert-model-parallel-size 1
---moe-token-dispatcher-type alltoall
---moe-router-load-balancing-type aux_loss
---moe-aux-loss-coeff 0.01
-```
+- [ ] **Step 4: Run and gate M2 on port 29652**
 
-- [ ] **Step 3: Implement the three modes**
+Use the same four-iteration mode. If memory reaches 28672 MiB or OOMs, change only M2 MBS/GBS to 1/16, rerun tests, and repeat.
 
-- `CALIBRATE` and `1F1B`: `--enable_cdcpp_scheduler --static_schedule 1F1B`.
-- `MAGELLAN`: `--custom-pipeline-schedule ORDER --custom-comm-dependency DEP`.
-- All modes: `--num_dc 1 --cdc_latency_bandwidth_delay_as_F_stage 0,0`.
-- `MAGELLAN` must reject missing or empty order/dependency files before
-  launching torchrun.
+- [ ] **Step 5: Derive and validate calibration JSON**
 
-- [ ] **Step 4: Shell-parse and dry-run validation**
-
-Run:
-
-```bash
-bash -n test_crossdc/magellan_overhead/run_training.sh
-test_crossdc/magellan_overhead/run_training.sh INVALID 1F1B /tmp/invalid
-```
-
-Expected: `bash -n` succeeds; invalid config exits nonzero before torchrun.
-
-- [ ] **Step 5: Commit Task 2**
-
-```bash
-git add test_crossdc/magellan_overhead
-git commit -m "exp: add Dense and MoE overhead launcher"
-```
-
----
-
-### Task 3: Prove Dense and MoE runtime compatibility
-
-**Files:**
-- Modify only if diagnostics require it: `test_crossdc/magellan_overhead/run_training.sh`
-- Record: `runs/magellan_comm_dependency_overhead_pp4/smoke/`
-
-**Interfaces:**
-- Consumes: Task 2 launcher.
-- Produces: one successful short Dense 1F1B log and one successful short MoE 1F1B log.
-
-- [ ] **Step 1: Run D1 1F1B smoke**
-
-Temporarily override the experiment-test count so the process exits after the
-first post-profile iteration. Require no OOM, NaN, or distributed timeout.
-
-- [ ] **Step 2: Run M1 1F1B smoke**
-
-Use the same short-run override. If standard MoE arguments are incompatible
-with the CDC scheduler, diagnose the first failing stack trace before changing
-arguments.
-
-- [ ] **Step 3: Verify profile shape**
-
-For each smoke run, require `total.json` to contain one `T_F` row with four
-stage values and 4×4 `T_alpha`/`T_bw` matrices.
-
-- [ ] **Step 4: Re-run launcher validation after any fix**
-
-Run `bash -n`, D1 smoke, and M1 smoke again; require all three to pass.
-
-- [ ] **Step 5: Commit only required compatibility fixes**
-
-Do not commit smoke caches or TensorBoard events.
-
----
-
-### Task 4: Calibrate all four configurations
-
-**Files:**
-- Create results under: `results/magellan_comm_dependency_overhead_pp4/<ID>/calibration/`
-
-**Interfaces:**
-- Consumes: four successful `CALIBRATE` runs and Task 1 `calibrate` CLI.
-- Produces: four `total.json`, `calibration.json`, `run.info`, and compact calibration logs.
-
-- [ ] **Step 1: Run one uncounted calibration per configuration**
-
-Run D1, D2, M1, and M2 sequentially to avoid GPU contention.
-
-- [ ] **Step 2: Derive calibration JSON**
-
-For each configuration:
+For each successful run:
 
 ```bash
 python tools/magellan_overhead.py calibrate \
-  --profile-total <run>/total.json \
-  --output results/.../<ID>/calibration/calibration.json
+  --profile-total RUN_DIR/total.json \
+  --output RESULT_DIR/calibration/calibration.json
 ```
 
-- [ ] **Step 3: Validate calibration values**
-
-Require finite positive `t_f_ref_seconds`, `t_comm_ref_seconds`, and
-`comm_units`. Preserve at least six decimal digits in solver input.
-
-- [ ] **Step 4: Copy compact calibration artifacts**
-
-Copy `total.json`, `run.info`, and the relevant profile lines from `train.log`;
-do not copy cache directories.
+Require finite positive `t_f_ref_seconds`, `t_comm_ref_seconds`, and `comm_units`. Copy `total.json` and `run.info` into the same result calibration directory.
 
 ---
 
-### Task 5: Solve and validate four Magellan schedules
+### Task 3: Solve and validate three N=16 schedules
 
 **Files:**
-- Create results under: `results/magellan_comm_dependency_overhead_pp4/<ID>/solver/`
+- Create local outputs: `.codex-temp/remaining_overhead_solver_20260730/<ID>/`
+- Create server outputs: `results/magellan_comm_dependency_overhead_pp4/<config-dir>/solver/`
 
 **Interfaces:**
-- Consumes: local Magellan checkout at `C:\Users\86159\Desktop\MAGELLAN`, local Python with OR-Tools 9.15.6755, and four calibration JSON files copied from the server.
-- Produces: four order files, four non-empty notification dependency files, solver summaries, and exact command records copied back to the server.
+- Consumes: each new `calibration.json`.
+- Produces: `replay.order.json`, notification dependency JSON, solver summary, command metadata, and `validation.json`.
 
-- [ ] **Step 1: Copy calibration JSON files from server to the local workspace**
+- [ ] **Step 1: Copy the three calibration JSON files to the local solver workspace**
 
-Use explicit configuration paths and retain configuration IDs.
+Use SCP with explicit D2, M1, and M2 paths. Do not use the stale calibration files already present from the previous matrix.
 
-- [ ] **Step 2: Run one CP-SAT solve per configuration**
+- [ ] **Step 2: Solve each configuration sequentially**
 
-Use:
+For each ID, read `comm_units` and `t_f_ref_seconds` from its copied JSON and invoke `replay_cp_sat_on_topology.py` with:
 
 ```text
---topo-folder Motivation/Topology/star_4/bw_300Gbps_lat_0.01s
---microbatches 8 --stages 4
---comm-units <configuration comm_units>
+--topo-folder C:\Users\86159\Desktop\MAGELLAN\Motivation\Topology\star_4\bw_300Gbps_lat_0.01s
+--microbatches 16 --stages 4
+--comm-units CALIBRATED_COMM_UNITS
 --delay-units 0 0 0 0 0 0
---t-fwd-s <configuration t_f_ref_seconds>
+--t-fwd-s CALIBRATED_T_F
 --r-save 1 --mem 8 --time-limit 600 --seed 0
 --experiments opt_sim --sat-link-exclusive
 --sat-comm-split-k 1 --comm-round-decimals 4
 ```
 
-- [ ] **Step 3: Require feasible/optimal output and locate canonical files**
+Use the existing `Magellan` package bootstrap required by the Windows checkout. Poll long-running solves without restarting them.
 
-For each solver output, require solver status `FEASIBLE` or `OPTIMAL`,
-`exp_opt_sim/replay.order.json`, and the generated
-`*.notification_deps.json`.
+- [ ] **Step 3: Upload canonical artifacts**
 
-- [ ] **Step 4: Copy solver artifacts to the server**
+For each successful solve, upload `replay.order.json`,
+`replay.notification.no_competition.notification_deps.json`,
+`experiment.summary.json`, and `debug.sat_solution.json`.
 
-Copy canonical files and compact solver metadata into the configuration's
-`solver/` directory.
+- [ ] **Step 4: Validate with both validators**
 
-- [ ] **Step 5: Run Task 1 schedule validation**
+Run:
 
-Validate all four schedule/dependency pairs with `N=8`, `S=4`. Require a
-nonzero dependency count and an acyclic combined graph.
+```bash
+python tools/magellan_overhead.py validate \
+  --order RESULT_DIR/solver/replay.order.json \
+  --dependencies RESULT_DIR/solver/replay.notification.no_competition.notification_deps.json \
+  --microbatches 16 --stages 4 \
+  --output RESULT_DIR/solver/validation.json
+```
+
+Then load the same pair through `load_custom_schedule(..., pp_size=4,
+num_microbatches=16)`. Require an acyclic graph, complete 224-operation
+coverage, at least one extra dependency, and at least one remote Gloo
+dependency.
 
 ---
 
-### Task 6: Run the 24 measured training processes
+### Task 4: Run six measured training processes
 
 **Files:**
-- Create run artifacts under each configuration's `1f1b/` and `magellan_dependency/` directories.
+- Create: `runs/magellan_comm_dependency_overhead_pp4/formal_20260730/<ID>_<arm>/`
+- Create compact copies under each configuration result directory.
 
 **Interfaces:**
-- Consumes: Task 2 launcher and Task 5 validated schedules.
-- Produces: three 1F1B and three Magellan logs for each of D1, D2, M1, M2.
+- Consumes: exact preflight-approved configuration and validated schedule.
+- Produces: one 1F1B and one Magellan 20-iteration log for each of D2, M1, and M2.
 
-- [ ] **Step 1: Run D1 repetitions**
+- [ ] **Step 1: Run D2**
 
-Run 1F1B repetitions 1-3, then Magellan repetitions 1-3, sequentially.
+Run 1F1B on port 29660, then Magellan on port 29661. Set
+`CDC_OVERHEAD_TRAIN_ITERS=20` and `CDC_OVERHEAD_EXP_TEST_ITERS=17`.
 
-- [ ] **Step 2: Run D2 repetitions**
+- [ ] **Step 2: Run M1**
 
-Use the same ordering and isolation.
+Run 1F1B on port 29662, then Magellan on port 29663 with the same iteration settings.
 
-- [ ] **Step 3: Run M1 repetitions**
+- [ ] **Step 3: Run M2**
 
-Use the same ordering and isolation.
+Run 1F1B on port 29664, then Magellan on port 29665 with the same iteration settings.
 
-- [ ] **Step 4: Run M2 repetitions**
+- [ ] **Step 4: Audit every process immediately**
 
-Use the same ordering and isolation.
+Require `completed.txt`, exactly 20 iteration records, zero skipped and NaN
+iterations, no OOM/deadlock/timeout, and identical per-iteration loss between
+the two arms of the same configuration. Confirm Magellan `run.info` names both
+JSON inputs and both arms record `num_dc=1`, `delay_pairs=0,0`.
 
-- [ ] **Step 5: Audit process outcomes**
+- [ ] **Step 5: Copy compact artifacts**
 
-Require 24 completed launch markers, no deadlock/timeout/OOM/NaN text, and
-logs proving delay factors `0,0`. Magellan `run.info` must name both canonical
-JSON inputs.
+Copy `train.log`, `run.info`, `total.json`, and `completed.txt` into
+`1f1b/` or `magellan_dependency/`. Exclude Triton caches and TensorBoard files.
 
 ---
 
-### Task 7: Summarize and verify results
+### Task 5: Generate the four-configuration summary
 
 **Files:**
 - Create: `results/magellan_comm_dependency_overhead_pp4/samples.csv`
 - Create: `results/magellan_comm_dependency_overhead_pp4/summary.csv`
 - Create: `results/magellan_comm_dependency_overhead_pp4/summary.json`
-- Create: `results/magellan_comm_dependency_overhead_pp4/README.md`
+- Create or update: `results/magellan_comm_dependency_overhead_pp4/README.md`
 
 **Interfaces:**
-- Consumes: 24 raw `train.log` files.
-- Produces: 360 iteration rows, eight arm summaries, four paired relative-change values, and reproducibility documentation.
+- Consumes: the retained D1 logs and six new logs.
+- Produces: 112 measured rows, eight arm summaries, and four relative-change values.
 
-- [ ] **Step 1: Parse all logs**
+- [ ] **Step 1: Parse iterations 6–19**
 
-Run the Task 1 `summarize` CLI with the result root. Require exactly iterations
-6-20 from every log.
+Require 14 rows from each of eight arm logs. D1 uses the retained
+`pilot_20260730/raw` logs; D2/M1/M2 use Task 4 compact copies.
 
-- [ ] **Step 2: Verify sample cardinality**
+- [ ] **Step 2: Write deterministic summaries**
 
-Require:
+For each arm, write count, mean, median, sample standard deviation, minimum,
+and maximum. For each configuration, compute:
 
-```text
-24 logs × 15 samples = 360 rows
-4 configurations × 2 arms = 8 summary rows
-45 samples per configuration/arm
+```python
+(median_magellan_ms - median_1f1b_ms) / median_1f1b_ms * 100.0
 ```
 
-- [ ] **Step 3: Compute paired comparison fields**
+- [ ] **Step 3: Document interpretation**
 
-For each configuration, calculate
-`(median_magellan_ms - median_1f1b_ms) / median_1f1b_ms * 100`.
+Record exact final configurations, any fallback taken, peak memory,
+calibration ratios, CP-SAT status, raw/extra/remote dependency counts, timing
+statistics, and the limitation that each arm is a single run.
 
-- [ ] **Step 4: Write README**
+- [ ] **Step 4: Regenerate and compare**
 
-Document hardware/software, exact configurations, calibration values, solver
-statuses, dependency counts, commands, statistics, and the limitation that the
-star is a logical scheduler model rather than the single-node physical path.
+Regenerate CSV/JSON from raw logs and require byte-identical content.
 
-- [ ] **Step 5: Regenerate summaries and compare hashes**
+---
 
-Delete only generated summary files, regenerate them from raw logs, and require
-the regenerated CSV/JSON content to match.
+### Task 6: Final verification, commit, and push
 
-- [ ] **Step 6: Run final repository checks**
+**Files:**
+- Commit only approved scripts, plan, and compact result artifacts.
 
-Run focused unit tests, `bash -n`, schedule validation for all four inputs,
-sample-count checks, and `git diff --check`.
+**Interfaces:**
+- Consumes: Tasks 1–5.
+- Produces: reproducible results on remote branch `crosspipe`.
 
-- [ ] **Step 7: Commit and push**
+- [ ] **Step 1: Run fresh verification**
 
-Commit scripts and compact results without caches or large profiler files, then
-push branch `crosspipe` to the configured remote.
+Run the full focused pytest suite, `bash -n`, all four schedule validations,
+JSON parsing over the result tree, the eight-log sample cardinality audit,
+loss/skip/NaN checks, and `git diff --check`.
+
+- [ ] **Step 2: Inspect scope**
+
+Use `git status --short` and `git diff --stat`. Preserve unrelated or stale
+untracked results outside the approved final directories.
+
+- [ ] **Step 3: Commit results**
+
+Stage only the plan, approved launcher/config/tool changes, compact D2/M1/M2
+artifacts, and root summaries. Commit with an experiment-specific message.
+
+- [ ] **Step 4: Push and verify remote branch**
+
+Push `crosspipe` to `origin` and verify the remote branch contains the new
+commit.
